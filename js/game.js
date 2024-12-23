@@ -1,6 +1,6 @@
 import { EnemyManager } from "./enemyManager.js";
 import { TowerManager } from "./towerManager.js";
-import { WaveManager } from "./waveManager.js";
+import { WaveManager }  from "./waveManager.js";
 
 export class Game {
   constructor(
@@ -17,7 +17,6 @@ export class Game {
     this.height = canvas.height;
 
     this.gold = 200;
-    this.lives = 20; // Player lives
     this.enemyTypes = [];
 
     // Pause control
@@ -35,7 +34,7 @@ export class Game {
     // Managers
     this.enemyManager = new EnemyManager(this);
     this.towerManager = new TowerManager(this);
-    this.waveManager = new WaveManager(this);
+    this.waveManager  = new WaveManager(this);
 
     // Main loop
     this.lastTime = 0;
@@ -48,12 +47,14 @@ export class Game {
       this.waveManager.sendWaveEarly();
     });
 
+    // We also grab #pauseButton from the DOM
     const pauseBtn = document.getElementById("pauseButton");
     pauseBtn.addEventListener("click", () => {
       this.paused = !this.paused;
       pauseBtn.textContent = this.paused ? "Resume" : "Pause";
     });
 
+    // Debug toggle from prior code, omitted for brevity ...
     debugToggle.addEventListener("click", () => {
       this.debugMode = !this.debugMode;
       debugToggle.textContent = this.debugMode
@@ -64,7 +65,10 @@ export class Game {
     debugToggle.textContent = "Disable Debug Mode";
     debugTableContainer.style.display = "block";
 
+    // Canvas click
     this.canvas.addEventListener("click", (e) => this.handleCanvasClick(e));
+
+    // Canvas mousemove for cursor changes
     this.canvas.addEventListener("mousemove", (e) => this.handleMouseMove(e));
   }
 
@@ -75,26 +79,27 @@ export class Game {
     const scaleX = this.width / data.mapWidth;
     const scaleY = this.height / data.mapHeight;
 
-    this.path = data.path.map((pt) => ({
+    this.path = data.path.map(pt => ({
       x: pt.x * scaleX,
       y: pt.y * scaleY,
     }));
-    this.towerSpots = data.towerSpots.map((s) => ({
+    this.towerSpots = data.towerSpots.map(s => ({
       x: s.x * scaleX,
       y: s.y * scaleY,
       occupied: false,
     }));
 
+    // **Load waves into WaveManager now that level data is available**
     this.waveManager.loadWavesFromLevel(data);
   }
 
   setEnemyTypes(types) {
-    this.enemyTypes = types.map((e) => {
-      if (e.name === "drone") return { ...e, baseHp: 30, gold: 5 };
-      if (e.name === "leaf_blower") return { ...e, baseHp: 60, gold: 8 };
+    this.enemyTypes = types.map(e => {
+      if (e.name === "drone")         return { ...e, baseHp: 30,  gold: 5 };
+      if (e.name === "leaf_blower")   return { ...e, baseHp: 60,  gold: 8 };
       if (e.name === "trench_digger") return { ...e, baseHp: 100, gold: 12 };
       if (e.name === "trench_walker") return { ...e, baseHp: 150, gold: 15 };
-      return { ...e, baseHp: 50, gold: 5 };
+      return { ...e, baseHp: 50,      gold: 5 };
     });
   }
 
@@ -107,13 +112,6 @@ export class Game {
     this.lastTime = timestamp;
     const deltaSec = delta / 1000;
 
-    // Check for game over
-    if (this.lives <= 0) {
-      this.paused = true;
-      alert("Game Over");
-      return;
-    }
-
     // If not paused, update
     if (!this.paused) {
       this.waveManager.update(deltaSec);
@@ -121,19 +119,56 @@ export class Game {
       this.towerManager.update(deltaSec);
     }
 
-    // Decrement lives if enemies exit
-    this.enemies = this.enemies.filter((enemy) => {
-      if (enemy.x > this.width || enemy.y > this.height) {
-        this.lives -= 1;
-        return false;
-      }
-      return true;
-    });
-
     // Always draw (even if paused)
     this.draw();
 
     requestAnimationFrame((ts) => this.gameLoop(ts));
+  }
+
+  handleCanvasClick(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (this.uiManager && this.uiManager.handleCanvasClick) {
+      this.uiManager.handleCanvasClick(mx, my, rect);
+    }
+  }
+
+  // Change cursor to pointer if over a tower spot or enemy
+  handleMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    let hoveringClickable = false;
+
+    // Check tower spot
+    for (const s of this.towerSpots) {
+      const dx = mx - s.x;
+      const dy = my - s.y;
+      if (dx * dx + dy * dy < 100) {
+        hoveringClickable = true;
+        break;
+      }
+    }
+
+    // Check enemies if not found tower spot
+    if (!hoveringClickable) {
+      for (const enemy of this.enemies) {
+        if (
+          mx >= enemy.x &&
+          mx <= enemy.x + enemy.width &&
+          my >= enemy.y &&
+          my <= enemy.y + enemy.height
+        ) {
+          hoveringClickable = true;
+          break;
+        }
+      }
+    }
+
+    // Update canvas cursor
+    this.canvas.style.cursor = hoveringClickable ? "pointer" : "default";
   }
 
   draw() {
@@ -143,13 +178,44 @@ export class Game {
       this.ctx.clearRect(0, 0, this.width, this.height);
     }
 
-    this.enemies.forEach((enemy) => {
+    // Enemies
+    this.enemies.forEach(enemy => {
       this.enemyManager.drawEnemy(this.ctx, enemy);
     });
 
+    // Projectiles
     this.towerManager.drawProjectiles(this.ctx);
+
+    // Towers
     this.towerManager.drawTowers(this.ctx);
 
+    // Tower spots
+    this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
+    this.towerSpots.forEach((spot, i) => {
+      this.ctx.beginPath();
+      this.ctx.arc(spot.x, spot.y, 10, 0, Math.PI * 2);
+      this.ctx.fill();
+      if (this.debugMode) {
+        this.ctx.fillStyle = "white";
+        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 15);
+        this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
+      }
+    });
+
+    // Path debug
+    this.ctx.fillStyle = "yellow";
+    this.path.forEach((wp, i) => {
+      this.ctx.beginPath();
+      this.ctx.arc(wp.x, wp.y, 5, 0, Math.PI * 2);
+      this.ctx.fill();
+      if (this.debugMode) {
+        this.ctx.fillStyle = "white";
+        this.ctx.fillText(`P${i}`, wp.x - 10, wp.y - 10);
+        this.ctx.fillStyle = "yellow";
+      }
+    });
+
+    // HUD
     this.ctx.fillStyle = "white";
     this.ctx.fillText(`Gold: ${this.gold}`, 10, 50);
     this.ctx.fillText(
@@ -157,6 +223,8 @@ export class Game {
       10,
       70
     );
-    this.ctx.fillText(`Lives: ${this.lives}`, 10, 90); // Display lives
+    if (!this.waveManager.waveActive && this.waveManager.waveIndex < this.waveManager.waves.length) {
+      this.ctx.fillText(`Next wave is ready`, 10, 90);
+    }
   }
 }

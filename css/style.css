@@ -15,14 +15,6 @@ body {
     background-color: #000;
     border: 2px solid #aaa;
   }
-
-  #livesCounter {
-    position: absolute;
-    top: 50px;
-    left: 10px;
-    color: white;
-    font-size: 16px;
-  }
   
   /* Container for top-right buttons (Pause / Send Wave) */
   #topButtons {
