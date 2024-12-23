@@ -1,0 +1,108 @@
+/* Make the body relatively positioned, so absolutely positioned elements anchor to it */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #333;
+    color: #eee;
+    font-family: sans-serif;
+    position: relative;
+  }
+  
+  /* Game canvas styling (center + border) */
+  #gameCanvas {
+    display: block;
+    margin: 0 auto;
+    background-color: #000;
+    border: 2px solid #aaa;
+  }
+  
+  /* Container for top-right buttons (Pause / Send Wave) */
+  #topButtons {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 6px;
+  }
+  
+  /* Shared style for both action buttons (Pause, Wave) */
+  .actionButton {
+    background-color: #800;  /* Dark red */
+    color: #fff;
+    border: 1px solid #600;
+    padding: 2px 6px;
+    font-size: 12px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  
+  .actionButton:hover {
+    background-color: #a00;  /* Slightly lighter on hover */
+  }
+  
+  /* Enemy stats panel at bottom-left */
+  #enemyStats {
+    display: none;
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 6px;
+    border: 1px solid #999;
+    border-radius: 3px;
+  }
+  
+  /* Tower creation/upgrade panel */
+  #towerSelectPanel {
+    display: none;
+    position: absolute;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid #999;
+    border-radius: 3px;
+    padding: 5px;
+    color: #fff;
+  }
+  
+  /* Bottom bar container */
+  #bottomBar {
+    width: 800px;
+    margin: 0 auto;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  
+  /* Left debug controls container */
+  .debugControls {
+    margin-bottom: 6px;
+  }
+  
+  /* Debug toggle text */
+  #debugToggle {
+    cursor: pointer;
+    margin-bottom: 6px;
+  }
+  
+  /* Hide the debug table container by default (shown if debug mode is on) */
+  #debugTableContainer {
+    display: none;
+  }
+  
+  /* The debug table itself */
+  #debugTable {
+    border-collapse: collapse;
+    border: 1px solid #999; /* Or you can remove if you prefer */
+  }
+  
+  /* Starting gold input spacing */
+  #startingGoldInput {
+    width: 60px;
+    margin-left: 4px;
+    margin-right: 8px;
+  }
+  
+  /* Restart button spacing */
+  #restartGameButton {
+    margin-top: 4px;
+  }

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>My Tower Defense</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+  </head>
+  <body>
+    <!-- Container for Pause & Wave buttons, top-right corner -->
+    <div id="topButtons">
+      <button id="pauseButton" class="actionButton">Pause</button>
+      <button id="sendWaveButton" class="actionButton">Send Next Wave Early</button>
+    </div>
+
+    <!-- Enemy stats UI (bottom-left) -->
+    <div id="enemyStats">
+      <img id="enemyImage" src="" alt="enemy">
+      <div><strong id="enemyName">Name</strong></div>
+      <div>HP: <span id="enemyHp"></span></div>
+      <div>Speed: <span id="enemySpeed"></span></div>
+      <div>Gold on Kill: <span id="enemyGold"></span></div>
+    </div>
+
+    <!-- Panel for tower creation/upgrade -->
+    <div id="towerSelectPanel"></div>
+
+    <!-- Game canvas -->
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <!-- Bottom bar for debug mode, table, gold input, restart, etc. -->
+    <div id="bottomBar">
+      <!-- Left side: debug controls -->
+      <div class="debugControls">
+        <!-- Debug toggle -->
+        <div id="debugToggle">Enable Debug Mode</div>
+        
+        <!-- "Starting gold" + "Restart Game" row -->
+        <label for="startingGoldInput">Starting gold</label>
+        <input
+          type="number"
+          id="startingGoldInput"
+          value="1000"
+        />
+        <button id="restartGameButton">Restart Game</button>
+
+        <!-- Debug table container -->
+        <div id="debugTableContainer">
+          <table id="debugTable"></table>
+        </div>
+      </div>
+
+      <!-- Right side placeholder (empty) -->
+      <div></div>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>
