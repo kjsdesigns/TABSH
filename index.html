@@ -6,10 +6,17 @@
     <link rel="stylesheet" type="text/css" href="css/style.css">
   </head>
   <body>
-    <!-- Container for Pause & Wave buttons, top-right corner -->
-    <div id="topButtons">
-      <button id="pauseButton" class="actionButton">Pause</button>
-      <button id="sendWaveButton" class="actionButton">Send Next Wave Early</button>
+    <!-- Wrap the canvas + buttons in a container so they're anchored relative to the canvas -->
+    <div id="gameContainer" style="position: relative; width: 800px; margin: 0 auto;">
+      <!-- Game canvas -->
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+      
+      <!-- Container for Speed / Pause & Wave buttons, anchored top-right of the canvas -->
+      <div id="topButtons" style="position: absolute; top: 10px; right: 10px; display: flex; gap: 6px;">
+        <button id="speedToggleButton" class="actionButton">1x</button>
+        <button id="pauseButton" class="actionButton">Pause</button>
+        <button id="sendWaveButton" class="actionButton">Send Next Wave Early</button>
+      </div>
     </div>
 
     <!-- Enemy stats UI (bottom-left) -->
@@ -23,9 +30,6 @@
 
     <!-- Panel for tower creation/upgrade -->
     <div id="towerSelectPanel"></div>
-
-    <!-- Game canvas -->
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
 
     <!-- Bottom bar for debug mode, table, gold input, restart, etc. -->
     <div id="bottomBar">

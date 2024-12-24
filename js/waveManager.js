@@ -5,14 +5,12 @@ export class WaveManager {
     this.waveIndex = 0;
     this.waveActive = false;
 
-    // No forced timeBetweenWaves
+    // We'll keep timeUntilNextWave=0 so that as soon as the game unpauses, wave can start
     this.timeUntilNextWave = 0;
 
-    // We'll load waves later, once level data is set
     this.waves = [];
   }
 
-  // Called after setLevelData() in Game
   loadWavesFromLevel(levelData) {
     this.waves = (levelData && levelData.waves) || [];
     console.log("Waves loaded (reloaded):", this.waves);
@@ -30,16 +28,13 @@ export class WaveManager {
     // Check if wave is done
     if (this.waveActive) {
       const waveInfo = this.waves[this.waveIndex];
-      // If all groups are fully spawned and no enemies left, wave is done
-      const allSpawned =
-        waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
+      // If all groups are fully spawned and no enemies remain, wave is done
+      const allSpawned = waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
       if (allSpawned && this.game.enemies.length === 0) {
         // wave done
         this.waveActive = false;
         this.waveIndex++;
-
-        // No downtime between waves in your setup
-        this.timeUntilNextWave = 0;
+        this.timeUntilNextWave = 0; // no forced delay for next wave
       }
     }
   }
@@ -73,18 +68,18 @@ export class WaveManager {
     // The actual spawn
     if (!this.game.path.length) return;
     const firstWP = this.game.path[0];
+    // Place the enemy's center on the first waypoint
     this.game.enemies.push({
       ...eType,
-      x: firstWP.x - eType.width / 2,
-      y: firstWP.y - eType.height / 2,
+      x: firstWP.x,
+      y: firstWP.y,
       hp,
-      baseHp: eType.baseHp, // for showing HP bar fraction
+      baseHp: eType.baseHp,
       waypointIndex: 1,
       dead: false,
     });
   }
 
-  // Pressing "Send Next Wave Early" => if no wave is active, start next wave
   sendWaveEarly() {
     if (!this.waveActive && this.waveIndex < this.waves.length) {
       this.startWave(this.waveIndex);

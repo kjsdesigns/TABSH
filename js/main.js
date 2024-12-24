@@ -1,44 +1,14 @@
 import { Game } from "./game.js";
 import { level1Data } from "./maps/level1.js";
 import { UIManager } from "./uiManager.js";
+// NEW import for unified loading
+import { loadAllAssets } from "./assetLoader.js";
 
 let game = null;
 
-// Helper for image loading
-function preloadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.src = src;
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-  });
-}
-
-function preloadEnemies(types) {
-  return Promise.all(
-    types.map(async (type) => {
-      const img = await preloadImage(type.src);
-      const maxDim = 30;
-      const scale = maxDim / Math.max(img.naturalWidth, img.naturalHeight);
-      const w = Math.round(img.naturalWidth * scale);
-      const h = Math.round(img.naturalHeight * scale);
-
-      return {
-        ...type,
-        image: img,
-        width: w,
-        height: h,
-        speed: 40,
-      };
-    })
-  );
-}
-
-async function preloadBackground(src) {
-  return preloadImage(src);
-}
-
-// Reusable function to start (or restart) the game with chosen gold
+/**
+ * Reusable function to start (or restart) the game with chosen gold.
+ */
 async function startGameWithGold(startingGold) {
   const canvas = document.getElementById("gameCanvas");
   const pauseBtn = document.getElementById("pauseButton");
@@ -64,21 +34,23 @@ async function startGameWithGold(startingGold) {
   uiManager.initDebugTable();
   game.uiManager = uiManager;
 
-  // Preload enemies
+  // Enemy definitions for loading
   const enemyTypes = [
     { name: "drone",         src: "assets/enemies/drone.png" },
     { name: "leaf_blower",   src: "assets/enemies/leaf_blower.png" },
     { name: "trench_digger", src: "assets/enemies/trench_digger.png" },
     { name: "trench_walker", src: "assets/enemies/trench_walker.png" },
   ];
-  const loadedTypes = await preloadEnemies(enemyTypes);
 
-  // Preload background
-  const bg = await preloadBackground(level1Data.background);
+  // Unified asset loading
+  const { loadedEnemies, loadedBackground } = await loadAllAssets(
+    enemyTypes,
+    level1Data.background
+  );
 
-  // Configure game
-  game.setEnemyTypes(loadedTypes);
-  game.setLevelData(level1Data, bg);
+  // Configure game with loaded assets
+  game.setEnemyTypes(loadedEnemies);
+  game.setLevelData(level1Data, loadedBackground);
 
   // Override starting gold here
   game.gold = startingGold;

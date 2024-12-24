@@ -17,10 +17,16 @@ export class Game {
     this.height = canvas.height;
 
     this.gold = 200;
-    this.enemyTypes = [];
+    this.lives = 20;
 
-    // Pause control
-    this.paused = false;
+    // Speed handling (unchanged from previous)
+    this.speedOptions = [1, 2, 4, 0.5]; 
+    this.speedIndex = 0;
+    this.gameSpeed = this.speedOptions[this.speedIndex]; // default = 1x
+
+    // For #2: start paused + label = "Start game"
+    this.isFirstStart = true;
+    this.paused = true;
 
     // Level data
     this.levelData = null;
@@ -47,14 +53,32 @@ export class Game {
       this.waveManager.sendWaveEarly();
     });
 
-    // We also grab #pauseButton from the DOM
+    // Speed toggle button
+    const speedBtn = document.getElementById("speedToggleButton");
+    speedBtn.addEventListener("click", () => {
+      this.speedIndex = (this.speedIndex + 1) % this.speedOptions.length;
+      this.gameSpeed = this.speedOptions[this.speedIndex];
+      speedBtn.textContent = `${this.gameSpeed}x`;
+    });
+
+    // Pause / "Start game" button
     const pauseBtn = document.getElementById("pauseButton");
+    // On fresh load or restart => label "Start game"
+    pauseBtn.textContent = "Start game";
     pauseBtn.addEventListener("click", () => {
+      // If it's the very first click, unpause + set label to "Pause"
+      if (this.isFirstStart) {
+        this.isFirstStart = false;
+        this.paused = false;
+        pauseBtn.textContent = "Pause";
+        return;
+      }
+      // Otherwise, normal pause toggling
       this.paused = !this.paused;
       pauseBtn.textContent = this.paused ? "Resume" : "Pause";
     });
 
-    // Debug toggle from prior code, omitted for brevity ...
+    // Debug toggle
     debugToggle.addEventListener("click", () => {
       this.debugMode = !this.debugMode;
       debugToggle.textContent = this.debugMode
@@ -89,17 +113,59 @@ export class Game {
       occupied: false,
     }));
 
-    // **Load waves into WaveManager now that level data is available**
+    // Load waves into WaveManager
     this.waveManager.loadWavesFromLevel(data);
   }
 
+  /**
+   * Adjust the enemy base HP to be 20% less than before,
+   * and give each enemy a random speed (~ +/-20% from a chosen base).
+   */
   setEnemyTypes(types) {
+    function randomSpeed(base) {
+      const factor = 0.8 + Math.random() * 0.4; // ±20%
+      return base * factor;
+    }
     this.enemyTypes = types.map(e => {
-      if (e.name === "drone")         return { ...e, baseHp: 30,  gold: 5 };
-      if (e.name === "leaf_blower")   return { ...e, baseHp: 60,  gold: 8 };
-      if (e.name === "trench_digger") return { ...e, baseHp: 100, gold: 12 };
-      if (e.name === "trench_walker") return { ...e, baseHp: 150, gold: 15 };
-      return { ...e, baseHp: 50,      gold: 5 };
+      if (e.name === "drone") {
+        return {
+          ...e,
+          baseHp: 30 * 0.8, // 20% less
+          gold: 5,
+          speed: randomSpeed(80),
+        };
+      }
+      if (e.name === "leaf_blower") {
+        return {
+          ...e,
+          baseHp: 60 * 0.8,
+          gold: 8,
+          speed: randomSpeed(60),
+        };
+      }
+      if (e.name === "trench_digger") {
+        return {
+          ...e,
+          baseHp: 100 * 0.8,
+          gold: 12,
+          speed: randomSpeed(30),
+        };
+      }
+      if (e.name === "trench_walker") {
+        return {
+          ...e,
+          baseHp: 150 * 0.8,
+          gold: 15,
+          speed: randomSpeed(25),
+        };
+      }
+      // fallback
+      return {
+        ...e,
+        baseHp: 50 * 0.8,
+        gold: 5,
+        speed: randomSpeed(50),
+      };
     });
   }
 
@@ -108,9 +174,12 @@ export class Game {
   }
 
   gameLoop(timestamp) {
-    const delta = timestamp - this.lastTime || 0;
+    let delta = (timestamp - this.lastTime) || 0;
     this.lastTime = timestamp;
-    const deltaSec = delta / 1000;
+
+    // Convert to seconds, then scale by gameSpeed
+    let deltaSec = delta / 1000;
+    deltaSec *= this.gameSpeed;
 
     // If not paused, update
     if (!this.paused) {
@@ -134,7 +203,6 @@ export class Game {
     }
   }
 
-  // Change cursor to pointer if over a tower spot or enemy
   handleMouseMove(e) {
     const rect = this.canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
@@ -152,15 +220,17 @@ export class Game {
       }
     }
 
-    // Check enemies if not found tower spot
+    // Check enemies
     if (!hoveringClickable) {
       for (const enemy of this.enemies) {
-        if (
-          mx >= enemy.x &&
-          mx <= enemy.x + enemy.width &&
-          my >= enemy.y &&
-          my <= enemy.y + enemy.height
-        ) {
+        // enemy is centered at (enemy.x, enemy.y),
+        // so bounding box is (x - width/2, y - height/2) to (x + width/2, y + height/2)
+        const left   = enemy.x - enemy.width / 2;
+        const right  = enemy.x + enemy.width / 2;
+        const top    = enemy.y - enemy.height / 2;
+        const bottom = enemy.y + enemy.height / 2;
+
+        if (mx >= left && mx <= right && my >= top && my <= bottom) {
           hoveringClickable = true;
           break;
         }
@@ -223,8 +293,12 @@ export class Game {
       10,
       70
     );
-    if (!this.waveManager.waveActive && this.waveManager.waveIndex < this.waveManager.waves.length) {
-      this.ctx.fillText(`Next wave is ready`, 10, 90);
+    this.ctx.fillText(`Lives: ${this.lives}`, 10, 90);
+    if (
+      !this.waveManager.waveActive &&
+      this.waveManager.waveIndex < this.waveManager.waves.length
+    ) {
+      this.ctx.fillText("Next wave is ready", 10, 110);
     }
   }
 }

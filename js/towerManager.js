@@ -9,8 +9,8 @@ export class TowerManager {
       {
         type: "point",
         basePrice: 80,
-        // old range: 100 -> +30% => ~130
-        range: 130,
+        // Increase the old 130 range by another 30% => ~169
+        range: 169,
         splashRadius: 0,
         fireRate: 1.5,
         upgrades: [
@@ -23,7 +23,6 @@ export class TowerManager {
       {
         type: "splash",
         basePrice: 80,
-        // old range: 80 -> +30% => ~104
         range: 104,
         splashRadius: 50,
         fireRate: 1.5,

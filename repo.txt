@@ -1,0 +1,1355 @@
+=== README.md CONTENT ===
+I'm working on a tower defense game.  I'll be sending you complete files that make up the game, then requesting changes.  Before you recommend changes, evaluate if you're missing any relevant files and ask me for them (instead of making assumptions).  Similarly, if you have a couple ways of making it work, ask me before providing multiple full solutions.
+
+Before providing the solution, evaluate if the files in question are getting too large and should be split up or otherwise refactored.  Any time there's any evidence of doing the same thing in 2 places identify that.  Summarize any file organization or modularity changes to me and ask me if I want to proceed with them before giving me the solution.
+
+When delivering the solution, always provide the complete new version of only the files that require changes.
+=== REPO FILE STRUCTURE ===
+Directories:
+  .
+  asset_source
+  assets
+  assets/enemies
+  assets/maps
+  css
+  js
+  js/maps
+
+Files:
+  LICENSE
+  README.md
+  asset_source/level1.pxd
+  asset_source/level1_enemies.pxd
+  assets/.DS_Store
+  assets/enemies/drone.png
+  assets/enemies/leaf_blower.png
+  assets/enemies/trench_digger.png
+  assets/enemies/trench_walker.png
+  assets/maps/level1.png
+  css/style.css
+  index.html
+  js/.DS_Store
+  js/dataManager.js
+  js/enemyManager.js
+  js/game.js
+  js/main.js
+  js/maps/level1.js
+  js/towerManager.js
+  js/uiManager.js
+  js/waveManager.js
+
+=== FILE CONTENTS ===
+=== css/style.css ===
+/* Make the body relatively positioned, so absolutely positioned elements anchor to it */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #333;
+    color: #eee;
+    font-family: sans-serif;
+    position: relative;
+  }
+  
+  /* Game canvas styling (center + border) */
+  #gameCanvas {
+    display: block;
+    margin: 0 auto;
+    background-color: #000;
+    border: 2px solid #aaa;
+  }
+  
+  /* Container for top-right buttons (Pause / Send Wave) */
+  #topButtons {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 6px;
+  }
+  
+  /* Shared style for both action buttons (Pause, Wave) */
+  .actionButton {
+    background-color: #800;  /* Dark red */
+    color: #fff;
+    border: 1px solid #600;
+    padding: 2px 6px;
+    font-size: 12px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  
+  .actionButton:hover {
+    background-color: #a00;  /* Slightly lighter on hover */
+  }
+  
+  /* Enemy stats panel at bottom-left */
+  #enemyStats {
+    display: none;
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 6px;
+    border: 1px solid #999;
+    border-radius: 3px;
+  }
+  
+  /* Tower creation/upgrade panel */
+  #towerSelectPanel {
+    display: none;
+    position: absolute;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid #999;
+    border-radius: 3px;
+    padding: 5px;
+    color: #fff;
+  }
+  
+  /* Bottom bar container */
+  #bottomBar {
+    width: 800px;
+    margin: 0 auto;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  
+  /* Left debug controls container */
+  .debugControls {
+    margin-bottom: 6px;
+  }
+  
+  /* Debug toggle text */
+  #debugToggle {
+    cursor: pointer;
+    margin-bottom: 6px;
+  }
+  
+  /* Hide the debug table container by default (shown if debug mode is on) */
+  #debugTableContainer {
+    display: none;
+  }
+  
+  /* The debug table itself */
+  #debugTable {
+    border-collapse: collapse;
+    border: 1px solid #999; /* Or you can remove if you prefer */
+  }
+  
+  /* Starting gold input spacing */
+  #startingGoldInput {
+    width: 60px;
+    margin-left: 4px;
+    margin-right: 8px;
+  }
+  
+  /* Restart button spacing */
+  #restartGameButton {
+    margin-top: 4px;
+  }
+=== index.html ===
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>My Tower Defense</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+  </head>
+  <body>
+    <!-- Container for Pause & Wave buttons, top-right corner -->
+    <div id="topButtons">
+      <button id="pauseButton" class="actionButton">Pause</button>
+      <button id="sendWaveButton" class="actionButton">Send Next Wave Early</button>
+    </div>
+
+    <!-- Enemy stats UI (bottom-left) -->
+    <div id="enemyStats">
+      <img id="enemyImage" src="" alt="enemy">
+      <div><strong id="enemyName">Name</strong></div>
+      <div>HP: <span id="enemyHp"></span></div>
+      <div>Speed: <span id="enemySpeed"></span></div>
+      <div>Gold on Kill: <span id="enemyGold"></span></div>
+    </div>
+
+    <!-- Panel for tower creation/upgrade -->
+    <div id="towerSelectPanel"></div>
+
+    <!-- Game canvas -->
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <!-- Bottom bar for debug mode, table, gold input, restart, etc. -->
+    <div id="bottomBar">
+      <!-- Left side: debug controls -->
+      <div class="debugControls">
+        <!-- Debug toggle -->
+        <div id="debugToggle">Enable Debug Mode</div>
+        
+        <!-- "Starting gold" + "Restart Game" row -->
+        <label for="startingGoldInput">Starting gold</label>
+        <input
+          type="number"
+          id="startingGoldInput"
+          value="1000"
+        />
+        <button id="restartGameButton">Restart Game</button>
+
+        <!-- Debug table container -->
+        <div id="debugTableContainer">
+          <table id="debugTable"></table>
+        </div>
+      </div>
+
+      <!-- Right side placeholder (empty) -->
+      <div></div>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>
+=== js/dataManager.js ===
+/**
+ * dataManager.js
+ * 
+ * Provides a function to load data from a Google Sheet.
+ */
+
+// Example function to fetch and parse data from a Google Sheets range.
+export async function loadSheetData(sheetId, apiKey, range) {
+    // Construct the Sheets API URL
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`;
+  
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      // Parse JSON returned by the Sheets API
+      const json = await response.json();
+  
+      // The data is typically stored in json.values as a 2D array
+      // Example: [["Name","Damage","Range"],["Archer Tower","10","150"]...]
+      const rows = json.values;
+      if (!rows || rows.length < 2) {
+        // If no data or only a header row, return an empty array
+        return [];
+      }
+  
+      const headers = rows[0];
+      const data = rows.slice(1).map((row) => {
+        const obj = {};
+        headers.forEach((header, i) => {
+          // If a cell is missing, default to empty string
+          obj[header] = row[i] !== undefined ? row[i] : "";
+        });
+        return obj;
+      });
+  
+      return data;
+    } catch (err) {
+      console.error("Error fetching or parsing Sheets data:", err);
+      return [];
+    }
+  }
+=== js/enemyManager.js ===
+export class EnemyManager {
+  constructor(game) {
+    this.game = game;
+  }
+
+  update(deltaSec) {
+    // Move enemies, handle death
+    this.game.enemies.forEach(e => {
+      this.updateEnemy(e, deltaSec);
+      if (e.hp <= 0) {
+        this.game.gold += e.gold || 0;
+        e.dead = true;
+        // If this was the selected enemy, clear selection
+        if (this.game.uiManager && this.game.uiManager.selectedEnemy === e) {
+          this.game.uiManager.selectedEnemy = null;
+          this.game.uiManager.hideEnemyStats();
+        }
+      }
+    });
+
+    // Remove dead enemies
+    this.game.enemies = this.game.enemies.filter(e => {
+      // If the enemy is "dead," remove it immediately
+      if (e.dead) return false;
+
+      // If the enemy is off-screen (beyond the right side), decrement lives
+      // We'll assume the path leads to the right side of the canvas
+      if (e.x > this.game.width + e.width) {
+        this.game.lives -= 1;
+
+        // Check for game over
+        if (this.game.lives <= 0) {
+          this.game.lives = 0; 
+          this.game.paused = true;
+          alert("Game Over");
+        }
+        return false;
+      }
+
+      // Otherwise, keep enemy
+      return true;
+    });
+  }
+
+  updateEnemy(enemy, deltaSec) {
+    const path = this.game.path;
+    const nextWP = path[enemy.waypointIndex];
+    if (!nextWP) {
+      // No next WP => keep moving off-screen horizontally
+      enemy.x += enemy.speed * deltaSec;
+      return;
+    }
+
+    // Move toward next waypoint
+    const tx = nextWP.x - enemy.width / 2;
+    const ty = nextWP.y - enemy.height / 2;
+    const dx = tx - enemy.x;
+    const dy = ty - enemy.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const step = enemy.speed * deltaSec;
+
+    if (dist <= step) {
+      enemy.x = tx;
+      enemy.y = ty;
+      enemy.waypointIndex++;
+    } else {
+      enemy.x += (dx / dist) * step;
+      enemy.y += (dy / dist) * step;
+    }
+  }
+
+  drawEnemy(ctx, enemy) {
+    // Safe image draw
+    this.drawImageSafely(ctx, enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
+
+    // HP bar if not full
+    if (enemy.hp < enemy.baseHp) {
+      const barW = enemy.width;
+      const barH = 4;
+      const pct  = Math.max(0, enemy.hp / enemy.baseHp);
+
+      ctx.fillStyle = "red";
+      ctx.fillRect(enemy.x, enemy.y - 6, barW, barH);
+
+      ctx.fillStyle = "lime";
+      ctx.fillRect(enemy.x, enemy.y - 6, barW * pct, barH);
+    }
+  }
+
+  drawImageSafely(ctx, image, x, y, w, h) {
+    if (image.complete && image.naturalHeight !== 0) {
+      ctx.drawImage(image, x, y, w, h);
+    } else {
+      console.warn("Image not loaded or invalid:", image);
+    }
+  }
+}
+=== js/game.js ===
+import { EnemyManager } from "./enemyManager.js";
+import { TowerManager } from "./towerManager.js";
+import { WaveManager }  from "./waveManager.js";
+
+export class Game {
+  constructor(
+    canvas,
+    sendWaveBtn,
+    enemyStatsDiv,
+    towerSelectPanel,
+    debugToggle,
+    debugTableContainer
+  ) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.width = canvas.width;
+    this.height = canvas.height;
+
+    this.gold = 200;
+    this.lives = 20; // <-- Added starting lives
+    this.enemyTypes = [];
+
+    // Pause control
+    this.paused = false;
+
+    // Level data
+    this.levelData = null;
+    this.backgroundImg = null;
+    this.path = [];
+    this.towerSpots = [];
+
+    // Enemies
+    this.enemies = [];
+
+    // Managers
+    this.enemyManager = new EnemyManager(this);
+    this.towerManager = new TowerManager(this);
+    this.waveManager  = new WaveManager(this);
+
+    // Main loop
+    this.lastTime = 0;
+
+    // Debug mode on by default
+    this.debugMode = true;
+
+    // Hook wave button
+    sendWaveBtn.addEventListener("click", () => {
+      this.waveManager.sendWaveEarly();
+    });
+
+    // We also grab #pauseButton from the DOM
+    const pauseBtn = document.getElementById("pauseButton");
+    pauseBtn.addEventListener("click", () => {
+      this.paused = !this.paused;
+      pauseBtn.textContent = this.paused ? "Resume" : "Pause";
+    });
+
+    // Debug toggle from prior code, omitted for brevity ...
+    debugToggle.addEventListener("click", () => {
+      this.debugMode = !this.debugMode;
+      debugToggle.textContent = this.debugMode
+        ? "Disable Debug Mode"
+        : "Enable Debug Mode";
+      debugTableContainer.style.display = this.debugMode ? "block" : "none";
+    });
+    debugToggle.textContent = "Disable Debug Mode";
+    debugTableContainer.style.display = "block";
+
+    // Canvas click
+    this.canvas.addEventListener("click", (e) => this.handleCanvasClick(e));
+
+    // Canvas mousemove for cursor changes
+    this.canvas.addEventListener("mousemove", (e) => this.handleMouseMove(e));
+  }
+
+  setLevelData(data, bgImg) {
+    this.levelData = data;
+    this.backgroundImg = bgImg;
+
+    const scaleX = this.width / data.mapWidth;
+    const scaleY = this.height / data.mapHeight;
+
+    this.path = data.path.map(pt => ({
+      x: pt.x * scaleX,
+      y: pt.y * scaleY,
+    }));
+    this.towerSpots = data.towerSpots.map(s => ({
+      x: s.x * scaleX,
+      y: s.y * scaleY,
+      occupied: false,
+    }));
+
+    // **Load waves into WaveManager now that level data is available**
+    this.waveManager.loadWavesFromLevel(data);
+  }
+
+  setEnemyTypes(types) {
+    this.enemyTypes = types.map(e => {
+      if (e.name === "drone")         return { ...e, baseHp: 30,  gold: 5 };
+      if (e.name === "leaf_blower")   return { ...e, baseHp: 60,  gold: 8 };
+      if (e.name === "trench_digger") return { ...e, baseHp: 100, gold: 12 };
+      if (e.name === "trench_walker") return { ...e, baseHp: 150, gold: 15 };
+      return { ...e, baseHp: 50,      gold: 5 };
+    });
+  }
+
+  start() {
+    requestAnimationFrame((ts) => this.gameLoop(ts));
+  }
+
+  gameLoop(timestamp) {
+    const delta = timestamp - this.lastTime || 0;
+    this.lastTime = timestamp;
+    const deltaSec = delta / 1000;
+
+    // If not paused, update
+    if (!this.paused) {
+      this.waveManager.update(deltaSec);
+      this.enemyManager.update(deltaSec);
+      this.towerManager.update(deltaSec);
+    }
+
+    // Always draw (even if paused)
+    this.draw();
+
+    requestAnimationFrame((ts) => this.gameLoop(ts));
+  }
+
+  handleCanvasClick(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (this.uiManager && this.uiManager.handleCanvasClick) {
+      this.uiManager.handleCanvasClick(mx, my, rect);
+    }
+  }
+
+  // Change cursor to pointer if over a tower spot or enemy
+  handleMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    let hoveringClickable = false;
+
+    // Check tower spot
+    for (const s of this.towerSpots) {
+      const dx = mx - s.x;
+      const dy = my - s.y;
+      if (dx * dx + dy * dy < 100) {
+        hoveringClickable = true;
+        break;
+      }
+    }
+
+    // Check enemies if not found tower spot
+    if (!hoveringClickable) {
+      for (const enemy of this.enemies) {
+        if (
+          mx >= enemy.x &&
+          mx <= enemy.x + enemy.width &&
+          my >= enemy.y &&
+          my <= enemy.y + enemy.height
+        ) {
+          hoveringClickable = true;
+          break;
+        }
+      }
+    }
+
+    // Update canvas cursor
+    this.canvas.style.cursor = hoveringClickable ? "pointer" : "default";
+  }
+
+  draw() {
+    if (this.backgroundImg) {
+      this.ctx.drawImage(this.backgroundImg, 0, 0, this.width, this.height);
+    } else {
+      this.ctx.clearRect(0, 0, this.width, this.height);
+    }
+
+    // Enemies
+    this.enemies.forEach(enemy => {
+      this.enemyManager.drawEnemy(this.ctx, enemy);
+    });
+
+    // Projectiles
+    this.towerManager.drawProjectiles(this.ctx);
+
+    // Towers
+    this.towerManager.drawTowers(this.ctx);
+
+    // Tower spots
+    this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
+    this.towerSpots.forEach((spot, i) => {
+      this.ctx.beginPath();
+      this.ctx.arc(spot.x, spot.y, 10, 0, Math.PI * 2);
+      this.ctx.fill();
+      if (this.debugMode) {
+        this.ctx.fillStyle = "white";
+        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 15);
+        this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
+      }
+    });
+
+    // Path debug
+    this.ctx.fillStyle = "yellow";
+    this.path.forEach((wp, i) => {
+      this.ctx.beginPath();
+      this.ctx.arc(wp.x, wp.y, 5, 0, Math.PI * 2);
+      this.ctx.fill();
+      if (this.debugMode) {
+        this.ctx.fillStyle = "white";
+        this.ctx.fillText(`P${i}`, wp.x - 10, wp.y - 10);
+        this.ctx.fillStyle = "yellow";
+      }
+    });
+
+    // HUD
+    this.ctx.fillStyle = "white";
+    this.ctx.fillText(`Gold: ${this.gold}`, 10, 50);
+    this.ctx.fillText(
+      `Wave: ${this.waveManager.waveIndex + 1}/${this.waveManager.waves.length}`,
+      10,
+      70
+    );
+    this.ctx.fillText(`Lives: ${this.lives}`, 10, 90); // <-- Display lives
+    if (
+      !this.waveManager.waveActive &&
+      this.waveManager.waveIndex < this.waveManager.waves.length
+    ) {
+      this.ctx.fillText("Next wave is ready", 10, 110);
+    }
+  }
+}
+=== js/main.js ===
+import { Game } from "./game.js";
+import { level1Data } from "./maps/level1.js";
+import { UIManager } from "./uiManager.js";
+// NEW import for unified loading
+import { loadAllAssets } from "./assetLoader.js";
+
+let game = null;
+
+/**
+ * Reusable function to start (or restart) the game with chosen gold.
+ */
+async function startGameWithGold(startingGold) {
+  const canvas = document.getElementById("gameCanvas");
+  const pauseBtn = document.getElementById("pauseButton");
+  const sendWaveBtn = document.getElementById("sendWaveButton");
+  const enemyStatsDiv = document.getElementById("enemyStats");
+  const towerSelectPanel = document.getElementById("towerSelectPanel");
+  const debugToggle = document.getElementById("debugToggle");
+  const debugTableContainer = document.getElementById("debugTableContainer");
+  const debugTable = document.getElementById("debugTable");
+
+  // Create new Game
+  game = new Game(
+    canvas,
+    sendWaveBtn,
+    enemyStatsDiv,
+    towerSelectPanel,
+    debugToggle,
+    debugTableContainer
+  );
+
+  // UI Manager
+  const uiManager = new UIManager(game, enemyStatsDiv, towerSelectPanel, debugTable);
+  uiManager.initDebugTable();
+  game.uiManager = uiManager;
+
+  // Enemy definitions for loading
+  const enemyTypes = [
+    { name: "drone",         src: "assets/enemies/drone.png" },
+    { name: "leaf_blower",   src: "assets/enemies/leaf_blower.png" },
+    { name: "trench_digger", src: "assets/enemies/trench_digger.png" },
+    { name: "trench_walker", src: "assets/enemies/trench_walker.png" },
+  ];
+
+  // Unified asset loading
+  const { loadedEnemies, loadedBackground } = await loadAllAssets(
+    enemyTypes,
+    level1Data.background
+  );
+
+  // Configure game with loaded assets
+  game.setEnemyTypes(loadedEnemies);
+  game.setLevelData(level1Data, loadedBackground);
+
+  // Override starting gold here
+  game.gold = startingGold;
+
+  // Start
+  game.start();
+}
+
+window.addEventListener("load", async () => {
+  const startGoldInput = document.getElementById("startingGoldInput");
+  const restartGameButton = document.getElementById("restartGameButton");
+
+  // 1) Default (1000 in index.html) or user-supplied
+  await startGameWithGold(parseInt(startGoldInput.value) || 1000);
+
+  // 2) On "Restart Game", re-init with new gold
+  restartGameButton.addEventListener("click", async () => {
+    const desiredGold = parseInt(startGoldInput.value) || 0;
+    await startGameWithGold(desiredGold);
+  });
+});
+=== js/maps/level1.js ===
+export const level1Data = {
+  background: "assets/maps/level1.png",
+  mapWidth: 3530,
+  mapHeight: 2365,
+  path: [
+    { x: 420,  y: 0    },
+    { x: 800,  y: 860  },
+    { x: 1300, y: 1550 },
+    { x: 1500, y: 1750 },
+    { x: 1950, y: 1920 },
+    { x: 3530, y: 1360 },
+  ],
+  towerSpots: [
+    { x: 1020, y: 660  },   // T0
+    { x: 620,  y: 1280 },   // T1
+    { x: 1340, y: 1080 },   // T2
+    { x: 1020, y: 1660 },   // T3
+    { x: 1800, y: 1560 },   // T4
+    { x: 2080, y: 2150 },   // T5 (inserted)
+    { x: 3250, y: 1150 },   // T6
+  ],
+
+  /*-----------------------------------------
+   | Waves definition 
+   | Each wave has multiple "enemy groups."
+   |   - type: "drone", "leaf_blower", ...
+   |   - count: how many
+   |   - spawnInterval: ms between spawns
+   |   - hpMultiplier: how much to multiply the base HP
+   -----------------------------------------*/
+  waves: [
+    {
+      // Wave 1
+      enemyGroups: [
+        { type: "drone", count: 5, spawnInterval: 800, hpMultiplier: 1.0 },
+      ],
+    },
+    {
+      // Wave 2
+      enemyGroups: [
+        { type: "drone", count: 3, spawnInterval: 700, hpMultiplier: 1.1 },
+        { type: "leaf_blower", count: 2, spawnInterval: 1200, hpMultiplier: 1.1 },
+      ],
+    },
+    {
+      // Wave 3
+      enemyGroups: [
+        { type: "leaf_blower", count: 4, spawnInterval: 1000, hpMultiplier: 1.2 },
+        { type: "drone", count: 3, spawnInterval: 700, hpMultiplier: 1.2 },
+      ],
+    },
+    {
+      // Wave 4
+      enemyGroups: [
+        { type: "trench_digger", count: 4, spawnInterval: 900, hpMultiplier: 1.3 },
+        { type: "drone", count: 4, spawnInterval: 600, hpMultiplier: 1.3 },
+      ],
+    },
+    {
+      // Wave 5
+      enemyGroups: [
+        { type: "trench_digger", count: 5, spawnInterval: 800, hpMultiplier: 1.4 },
+        { type: "leaf_blower", count: 4, spawnInterval: 1200, hpMultiplier: 1.4 },
+      ],
+    },
+    {
+      // Wave 6
+      enemyGroups: [
+        { type: "trench_walker", count: 3, spawnInterval: 1200, hpMultiplier: 1.5 },
+        { type: "drone", count: 4, spawnInterval: 600, hpMultiplier: 1.5 },
+      ],
+    },
+    {
+      // Wave 7
+      enemyGroups: [
+        { type: "trench_walker", count: 4, spawnInterval: 1200, hpMultiplier: 1.6 },
+        { type: "leaf_blower", count: 3, spawnInterval: 900, hpMultiplier: 1.6 },
+      ],
+    },
+    {
+      // Wave 8
+      enemyGroups: [
+        { type: "drone", count: 6, spawnInterval: 600, hpMultiplier: 1.7 },
+        { type: "leaf_blower", count: 4, spawnInterval: 900, hpMultiplier: 1.7 },
+        { type: "trench_digger", count: 2, spawnInterval: 800, hpMultiplier: 1.7 },
+      ],
+    },
+    {
+      // Wave 9
+      enemyGroups: [
+        { type: "trench_digger", count: 5, spawnInterval: 700, hpMultiplier: 1.8 },
+        { type: "trench_walker", count: 3, spawnInterval: 1300, hpMultiplier: 1.8 },
+      ],
+    },
+    {
+      // Wave 10
+      enemyGroups: [
+        { type: "trench_walker", count: 6, spawnInterval: 1000, hpMultiplier: 1.9 },
+        { type: "leaf_blower", count: 5, spawnInterval: 1000, hpMultiplier: 1.9 },
+      ],
+    },
+    // Up to e.g. wave 10 for now (or add more if you want).
+  ],
+};
+=== js/towerManager.js ===
+export class TowerManager {
+  constructor(game) {
+    this.game = game;
+    this.towers = [];
+    this.projectiles = [];
+
+    // Single data definition for tower types
+    this.towerTypes = [
+      {
+        type: "point",
+        basePrice: 80,
+        // old range: 100 -> +30% => ~130
+        range: 130,
+        splashRadius: 0,
+        fireRate: 1.5,
+        upgrades: [
+          { level: 1, damage: 10, upgradeCost: 0   },
+          { level: 2, damage: 15, upgradeCost: 50  },
+          { level: 3, damage: 20, upgradeCost: 100 },
+          { level: 4, damage: 25, upgradeCost: 150 },
+        ],
+      },
+      {
+        type: "splash",
+        basePrice: 80,
+        // old range: 80 -> +30% => ~104
+        range: 104,
+        splashRadius: 50,
+        fireRate: 1.5,
+        upgrades: [
+          { level: 1, damage: 8,  upgradeCost: 0   },
+          { level: 2, damage: 12, upgradeCost: 50  },
+          { level: 3, damage: 16, upgradeCost: 100 },
+          { level: 4, damage: 20, upgradeCost: 150 },
+        ],
+      },
+    ];
+  }
+
+  /** Return full tower definition so UIManager can build the debug table */
+  getTowerData() {
+    return this.towerTypes;
+  }
+
+  /** Create a tower from our definition (level 1) */
+  createTower(towerTypeName) {
+    const def = this.towerTypes.find(t => t.type === towerTypeName);
+    if (!def) return null;
+
+    const firstLvl = def.upgrades[0];
+    return {
+      type: def.type,
+      level: 1,
+      range: def.range,
+      damage: firstLvl.damage,
+      splashRadius: def.splashRadius,
+      fireRate: def.fireRate,
+      fireCooldown: 0,
+      upgradeCost: def.upgrades[1] ? def.upgrades[1].upgradeCost : 0,
+      maxLevel: def.upgrades.length,
+      x: 0,
+      y: 0,
+      spot: null,
+    };
+  }
+
+  update(deltaSec) {
+    // Fire towers
+    this.towers.forEach(tower => {
+      tower.fireCooldown -= deltaSec;
+      if (tower.fireCooldown <= 0) {
+        this.fireTower(tower);
+        tower.fireCooldown = tower.fireRate;
+      }
+    });
+
+    // Move projectiles
+    this.projectiles.forEach(proj => {
+      const step = proj.speed * deltaSec;
+      const dx = proj.targetX - proj.x;
+      const dy = proj.targetY - proj.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist <= step) {
+        proj.x = proj.targetX;
+        proj.y = proj.targetY;
+        proj.hit = true;
+      } else {
+        proj.x += (dx / dist) * step;
+        proj.y += (dy / dist) * step;
+      }
+    });
+
+    // Handle collisions
+    this.projectiles.forEach(proj => {
+      if (proj.hit) {
+        if (proj.splashRadius > 0) {
+          // Splash damage
+          const enemiesHit = this.game.enemies.filter(e => {
+            const ex = e.x + e.width / 2;
+            const ey = e.y + e.height / 2;
+            const dx = proj.targetX - ex;
+            const dy = proj.targetY - ey;
+            return dx*dx + dy*dy <= proj.splashRadius * proj.splashRadius;
+          });
+          enemiesHit.forEach(e => {
+            if (e === proj.mainTarget) e.hp -= proj.damage;
+            else e.hp -= proj.damage / 2;
+          });
+        } else {
+          // Single target
+          if (proj.mainTarget) {
+            proj.mainTarget.hp -= proj.damage;
+          }
+        }
+      }
+    });
+
+    // Clean up projectiles that have hit
+    this.projectiles = this.projectiles.filter(p => !p.hit);
+  }
+
+  fireTower(tower) {
+    // Find enemies in range
+    const enemiesInRange = this.game.enemies.filter(e => {
+      const ex = e.x + e.width / 2;
+      const ey = e.y + e.height / 2;
+      const dx = ex - tower.x;
+      const dy = ey - tower.y;
+      return (dx*dx + dy*dy) <= (tower.range * tower.range);
+    });
+    if (!enemiesInRange.length) return;
+
+    // Lock onto first enemy
+    const target = enemiesInRange[0];
+    const ex = target.x + target.width / 2;
+    const ey = target.y + target.height / 2;
+
+    // 4x4 projectile
+    this.projectiles.push({
+      x: tower.x,
+      y: tower.y,
+      w: 4,
+      h: 4,
+      speed: 300,
+      damage: tower.damage,
+      splashRadius: tower.splashRadius,
+      mainTarget: target,
+      targetX: ex,
+      targetY: ey,
+      hit: false,
+    });
+  }
+
+  upgradeTower(tower) {
+    const def = this.towerTypes.find(t => t.type === tower.type);
+    if (!def) return;
+    if (tower.level >= def.upgrades.length) return; // maxed
+
+    const nextLvlIndex = tower.level;
+    const nextLvl = def.upgrades[nextLvlIndex];
+    if (!nextLvl) return;
+
+    // Check gold
+    if (this.game.gold < nextLvl.upgradeCost) return;
+
+    // Spend gold
+    this.game.gold -= nextLvl.upgradeCost;
+    tower.level++;
+
+    // Adjust tower stats
+    tower.damage = nextLvl.damage;
+    tower.upgradeCost = def.upgrades[tower.level]
+      ? def.upgrades[tower.level].upgradeCost
+      : 0;
+  }
+
+  drawTowers(ctx) {
+    this.towers.forEach(t => {
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 12 + t.level * 2, 0, Math.PI * 2);
+      ctx.fillStyle = (t.type === "point") ? "blue" : "red";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.stroke();
+
+      // Optional range circle
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255,255,255,0.3)";
+      ctx.stroke();
+    });
+  }
+
+  drawProjectiles(ctx) {
+    ctx.fillStyle = "yellow";
+    this.projectiles.forEach(proj => {
+      ctx.fillRect(proj.x - 2, proj.y - 2, proj.w, proj.h);
+    });
+  }
+}
+=== js/uiManager.js ===
+export class UIManager {
+    constructor(game, enemyStatsDiv, towerSelectPanel, debugTable) {
+      this.game = game;
+      this.enemyStatsDiv = enemyStatsDiv;
+      this.towerSelectPanel = towerSelectPanel;
+      this.debugTable = debugTable;
+  
+      // Elements inside enemyStatsDiv
+      this.enemyImage    = document.getElementById("enemyImage");
+      this.enemyNameEl   = document.getElementById("enemyName");
+      this.enemyHpEl     = document.getElementById("enemyHp");
+      this.enemySpeedEl  = document.getElementById("enemySpeed");
+      this.enemyGoldEl   = document.getElementById("enemyGold");
+  
+      this.selectedEnemy = null;
+    }
+  
+    /**
+     * Build the debug table from TowerManager data
+     */
+    initDebugTable() {
+      // Clear existing
+      this.debugTable.innerHTML = "";
+  
+      // Grab data from TowerManager
+      const towerData = this.game.towerManager.getTowerData();
+      if (!towerData.length) return;
+  
+      // Build a header row: 3 columns
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+      headerRow.innerHTML = `
+        <th style="min-width: 120px;"></th>
+        <th>${towerData[0].type.toUpperCase()} Tower</th>
+        <th>${towerData[1].type.toUpperCase()} Tower</th>
+      `;
+      thead.appendChild(headerRow);
+      this.debugTable.appendChild(thead);
+  
+      // Body
+      const tbody = document.createElement("tbody");
+  
+      // Base Price row
+      const basePriceRow = document.createElement("tr");
+      basePriceRow.innerHTML = `
+        <td><strong>Base Price</strong></td>
+        <td>$${towerData[0].basePrice}</td>
+        <td>$${towerData[1].basePrice}</td>
+      `;
+      tbody.appendChild(basePriceRow);
+  
+      // Upgrades
+      const maxUpgrades = Math.max(
+        towerData[0].upgrades.length,
+        towerData[1].upgrades.length
+      );
+  
+      for (let i = 0; i < maxUpgrades; i++) {
+        const lvl = i + 1;
+  
+        // 1) Row for damage at level
+        const rowDamage = document.createElement("tr");
+        rowDamage.innerHTML = `
+          <td>Level ${lvl} Damage</td>
+          <td>${towerData[0].upgrades[i] ? towerData[0].upgrades[i].damage : "-"}</td>
+          <td>${towerData[1].upgrades[i] ? towerData[1].upgrades[i].damage : "-"}</td>
+        `;
+        tbody.appendChild(rowDamage);
+  
+        // 2) Row for upgrade cost (except level 1 which has no upgrade cost)
+        if (lvl > 1) {
+          const rowCost = document.createElement("tr");
+          rowCost.innerHTML = `
+            <td>Level ${lvl} Upgrade Cost</td>
+            <td>$${towerData[0].upgrades[i] ? towerData[0].upgrades[i].upgradeCost : "-"}</td>
+            <td>$${towerData[1].upgrades[i] ? towerData[1].upgrades[i].upgradeCost : "-"}</td>
+          `;
+          tbody.appendChild(rowCost);
+        }
+      }
+  
+      this.debugTable.appendChild(tbody);
+    }
+  
+    /**
+     * Return a tower spot if (mx,my) is within the "detectionDist" (default 100).
+     */
+    getTowerSpotAt(mx, my, detectionDist = 100) {
+      return this.game.towerSpots.find(s => {
+        const dx = mx - s.x;
+        const dy = my - s.y;
+        return dx * dx + dy * dy < detectionDist;
+      });
+    }
+  
+    /**
+     * Return an enemy if (mx,my) is within the enemy's bounding box.
+     */
+    getEnemyAt(mx, my) {
+      return this.game.enemies.find(e =>
+        mx >= e.x &&
+        mx <= e.x + e.width &&
+        my >= e.y &&
+        my <= e.y + e.height
+      );
+    }
+  
+    /**
+     * Attempt to get either a tower spot or an enemy at (mx,my).
+     * - If we find a tower spot first, return it.
+     * - Otherwise check for enemy.
+     * 
+     * You can invert the order if you prefer giving priority to enemies.
+     */
+    getEntityUnderMouse(mx, my) {
+      const spot = this.getTowerSpotAt(mx, my);
+      if (spot) {
+        return { type: "towerSpot", spot };
+      }
+      const enemy = this.getEnemyAt(mx, my);
+      if (enemy) {
+        return { type: "enemy", enemy };
+      }
+      return null;
+    }
+  
+    /**
+     * Handle canvas clicks for tower creation/upgrade or enemy selection
+     */
+    handleCanvasClick(mx, my, rect) {
+      // Check what's under the mouse
+      const entity = this.getEntityUnderMouse(mx, my);
+  
+      if (!entity) {
+        // If clicked empty space, hide panels
+        this.selectedEnemy = null;
+        this.hideEnemyStats();
+        this.hideTowerPanel();
+        return;
+      }
+  
+      // Tower spot or enemy?
+      if (entity.type === "towerSpot") {
+        const spot = entity.spot;
+        const existingTower = this.game.towerManager.towers.find(t => t.spot === spot);
+        if (existingTower) {
+          // Show existing tower panel
+          this.showExistingTowerPanel(existingTower, mx + rect.left, my + rect.top);
+        } else {
+          // Show tower creation panel
+          this.showNewTowerPanel(spot, mx + rect.left, my + rect.top);
+        }
+        return;
+      }
+  
+      if (entity.type === "enemy") {
+        const clickedEnemy = entity.enemy;
+        this.selectedEnemy = clickedEnemy;
+        this.showEnemyStats(clickedEnemy);
+        this.hideTowerPanel();
+      }
+    }
+  
+    /**
+     * Show tower creation panel
+     */
+    showNewTowerPanel(spot, screenX, screenY) {
+      this.towerSelectPanel.innerHTML = "";
+  
+      const towerDefs = this.game.towerManager.getTowerData();
+      towerDefs.forEach(def => {
+        const div = document.createElement("div");
+        div.className = "towerOption";
+        div.textContent = `${def.type.toUpperCase()} - $${def.basePrice}, DMG:${def.upgrades[0].damage}, Rate:${def.fireRate}s`;
+        div.addEventListener("click", () => {
+          if (this.game.gold >= def.basePrice && !spot.occupied) {
+            this.game.gold -= def.basePrice;
+            const newTower = this.game.towerManager.createTower(def.type);
+            newTower.x = spot.x;
+            newTower.y = spot.y;
+            newTower.spot = spot;
+            spot.occupied = true;
+            this.game.towerManager.towers.push(newTower);
+          }
+          this.hideTowerPanel();
+        });
+        this.towerSelectPanel.appendChild(div);
+      });
+  
+      this.positionTowerPanel(screenX, screenY);
+    }
+  
+    /**
+     * Show panel for an existing tower (upgrade info, etc.)
+     */
+    showExistingTowerPanel(tower, screenX, screenY) {
+      this.towerSelectPanel.innerHTML = "";
+  
+      const title = document.createElement("div");
+      title.style.fontWeight = "bold";
+      title.textContent = `${tower.type.toUpperCase()} Tower`;
+      this.towerSelectPanel.appendChild(title);
+  
+      const currStats = document.createElement("div");
+      currStats.innerHTML = `
+        Level: ${tower.level}<br>
+        Damage: ${tower.damage}<br>
+        Fire Rate: ${tower.fireRate.toFixed(2)}s
+      `;
+      this.towerSelectPanel.appendChild(currStats);
+  
+      if (tower.level < tower.maxLevel) {
+        const nextLevel = tower.level + 1;
+        const def = this.game.towerManager.getTowerData().find(d => d.type === tower.type);
+        if (def) {
+          const nextDef = def.upgrades[tower.level]; // e.g. tower.level=1 => index=1
+          if (nextDef) {
+            const nextDamage = nextDef.damage;
+            const cost = nextDef.upgradeCost;
+            const nextRate = Math.max(0.8, tower.fireRate - 0.2).toFixed(2);
+  
+            const nextStats = document.createElement("div");
+            nextStats.innerHTML = `
+              <hr>
+              <strong>Next Level ${nextLevel}:</strong><br>
+              Damage: ${nextDamage}<br>
+              Fire Rate: ${nextRate}s<br>
+              Upgrade Cost: $${cost}
+            `;
+            this.towerSelectPanel.appendChild(nextStats);
+  
+            const upgradeBtn = document.createElement("button");
+            upgradeBtn.textContent = "Upgrade";
+            upgradeBtn.disabled = (this.game.gold < cost);
+            upgradeBtn.addEventListener("click", () => {
+              this.game.towerManager.upgradeTower(tower);
+              this.hideTowerPanel();
+            });
+            this.towerSelectPanel.appendChild(upgradeBtn);
+          }
+        }
+      } else {
+        const maxed = document.createElement("div");
+        maxed.style.marginTop = "6px";
+        maxed.textContent = "Tower is at max level.";
+        this.towerSelectPanel.appendChild(maxed);
+      }
+  
+      this.positionTowerPanel(screenX, screenY);
+    }
+  
+    positionTowerPanel(screenX, screenY) {
+      this.towerSelectPanel.style.left = (screenX + 10) + "px";
+      this.towerSelectPanel.style.top = (screenY - 50) + "px";
+      this.towerSelectPanel.style.display = "block";
+    }
+  
+    hideTowerPanel() {
+      this.towerSelectPanel.style.display = "none";
+    }
+  
+    /**
+     * Show enemy stats in the bottom-left panel
+     */
+    showEnemyStats(enemy) {
+      this.enemyStatsDiv.style.display = "block";
+      this.enemyImage.src         = enemy.src; // or use enemy.image.src if you prefer
+      this.enemyNameEl.textContent  = enemy.name;
+      this.enemyHpEl.textContent    = `${enemy.hp}/${enemy.baseHp}`;
+      this.enemySpeedEl.textContent = enemy.speed;
+      this.enemyGoldEl.textContent  = enemy.gold;
+    }
+  
+    hideEnemyStats() {
+      this.enemyStatsDiv.style.display = "none";
+    }
+  
+    /**
+     * Handle mouse move for updating the cursor
+     */
+    handleMouseMove(e) {
+      const rect = this.game.canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+  
+      // Check if something clickable is under the mouse
+      const entity = this.getEntityUnderMouse(mx, my);
+      this.game.canvas.style.cursor = entity ? "pointer" : "default";
+    }
+  }
+=== js/waveManager.js ===
+export class WaveManager {
+  constructor(game) {
+    this.game = game;
+
+    this.waveIndex = 0;
+    this.waveActive = false;
+
+    // No forced timeBetweenWaves
+    this.timeUntilNextWave = 0;
+
+    // We'll load waves later, once level data is set
+    this.waves = [];
+  }
+
+  // Called after setLevelData() in Game
+  loadWavesFromLevel(levelData) {
+    this.waves = (levelData && levelData.waves) || [];
+    console.log("Waves loaded (reloaded):", this.waves);
+  }
+
+  update(deltaSec) {
+    // If wave not active, see if there's a wave to start
+    if (!this.waveActive && this.waveIndex < this.waves.length) {
+      this.timeUntilNextWave -= deltaSec;
+      if (this.timeUntilNextWave <= 0) {
+        this.startWave(this.waveIndex);
+      }
+    }
+
+    // Check if wave is done
+    if (this.waveActive) {
+      const waveInfo = this.waves[this.waveIndex];
+      // If all groups are fully spawned and no enemies left, wave is done
+      const allSpawned =
+        waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
+      if (allSpawned && this.game.enemies.length === 0) {
+        // wave done
+        this.waveActive = false;
+        this.waveIndex++;
+
+        // No downtime between waves in your setup
+        this.timeUntilNextWave = 0;
+      }
+    }
+  }
+
+  startWave(index) {
+    this.waveActive = true;
+    const waveInfo = this.waves[index];
+
+    // For each group, spawn them in parallel
+    waveInfo.enemyGroups.forEach((group) => {
+      group.spawnedCount = 0; // track how many have spawned
+      const timer = setInterval(() => {
+        if (group.spawnedCount >= group.count) {
+          clearInterval(timer);
+          return;
+        }
+        this.spawnEnemyGroup(group);
+        group.spawnedCount++;
+      }, group.spawnInterval);
+    });
+  }
+
+  spawnEnemyGroup(group) {
+    // Find the matching enemy type
+    const eType = this.game.enemyTypes.find(e => e.name === group.type)
+                   || this.game.enemyTypes[0]; // fallback if not found
+
+    // Calculate HP from multiplier
+    const hp = Math.floor(eType.baseHp * group.hpMultiplier);
+
+    // The actual spawn
+    if (!this.game.path.length) return;
+    const firstWP = this.game.path[0];
+    this.game.enemies.push({
+      ...eType,
+      x: firstWP.x - eType.width / 2,
+      y: firstWP.y - eType.height / 2,
+      hp,
+      baseHp: eType.baseHp, // for showing HP bar fraction
+      waypointIndex: 1,
+      dead: false,
+    });
+  }
+
+  // Pressing "Send Next Wave Early" => if no wave is active, start next wave
+  sendWaveEarly() {
+    if (!this.waveActive && this.waveIndex < this.waves.length) {
+      this.startWave(this.waveIndex);
+    }
+  }
+}
