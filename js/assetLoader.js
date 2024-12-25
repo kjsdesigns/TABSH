@@ -1,4 +1,5 @@
 /**
+ * Test
  * assetLoader.js
  * 
  * Provides a unified function to load background and enemy images.

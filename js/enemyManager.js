@@ -1,6 +1,87 @@
 export class EnemyManager {
   constructor(game) {
     this.game = game;
+
+    // Internal data: "raw" stats before HP multipliers or random speed factor.
+    // We'll apply the 20% global HP reduction on spawn, plus any wave multiplier.
+    this.enemyBaseData = {
+      drone: {
+        baseHp: 30,
+        gold: 5,
+        baseSpeed: 80,
+      },
+      leaf_blower: {
+        baseHp: 60,
+        gold: 8,
+        baseSpeed: 60,
+      },
+      trench_digger: {
+        baseHp: 100,
+        gold: 12,
+        baseSpeed: 30,
+      },
+      trench_walker: {
+        baseHp: 150,
+        gold: 15,
+        baseSpeed: 25,
+      },
+    };
+
+    // Holds the loaded images, widths, heights, etc. from assetLoader.js
+    this.loadedEnemyAssets = [];
+  }
+
+  /**
+   * Store the loadedEnemies array from assetLoader.js
+   * Each element has { name, image, width, height, ... }.
+   */
+  setLoadedEnemyAssets(loadedEnemies) {
+    this.loadedEnemyAssets = loadedEnemies;
+  }
+
+  /**
+   * Spawn a single enemy of the given type with a wave-based HP multiplier.
+   * Applies the 20% HP reduction, random speed factor, etc.
+   */
+  spawnEnemy(type, hpMultiplier = 1) {
+    const baseData = this.enemyBaseData[type] || this.enemyBaseData["drone"];
+    // Find matching image asset (fallback to index[0] if missing)
+    const asset = this.loadedEnemyAssets.find(e => e.name === type)
+      || this.loadedEnemyAssets[0];
+
+    // 20% global HP reduction, then apply wave multiplier
+    const finalHp = baseData.baseHp * 0.8 * hpMultiplier;
+
+    // Random speed ~ ±20% around baseSpeed
+    const speedFactor = 0.8 + Math.random() * 0.4;
+    const finalSpeed = baseData.baseSpeed * speedFactor;
+
+    // Start at path[0]
+    const path = this.game.path;
+    if (!path || path.length === 0) {
+      console.warn("No path defined in Game; cannot spawn enemy properly.");
+      return;
+    }
+    const firstWP = path[0];
+
+    // Create enemy object
+    const enemy = {
+      name: type,
+      image: asset.image,
+      width: asset.width,
+      height: asset.height,
+      x: firstWP.x,
+      y: firstWP.y,
+      hp: finalHp,
+      baseHp: finalHp,
+      speed: finalSpeed,
+      gold: baseData.gold,
+      waypointIndex: 1,
+      dead: false,
+    };
+
+    // Add to game.enemies
+    this.game.enemies.push(enemy);
   }
 
   update(deltaSec) {
@@ -18,14 +99,11 @@ export class EnemyManager {
       }
     });
 
-    // Remove dead enemies
+    // Remove dead enemies or enemies that reach the right edge
     this.game.enemies = this.game.enemies.filter(e => {
-      // If the enemy is "dead," remove it immediately
       if (e.dead) return false;
 
-      // If the enemy is off-screen (beyond the right side?), lose a life
-      // We'll assume the path leads to the right edge.
-      // You can adjust if your path ends somewhere else.
+      // If the enemy is off-screen, lose a life
       if (e.x > this.game.width + e.width) {
         this.game.lives -= 1;
         if (this.game.lives <= 0) {
@@ -35,8 +113,6 @@ export class EnemyManager {
         }
         return false;
       }
-
-      // Otherwise, keep the enemy
       return true;
     });
   }
@@ -45,12 +121,12 @@ export class EnemyManager {
     const path = this.game.path;
     const nextWP = path[enemy.waypointIndex];
     if (!nextWP) {
-      // No next WP => just keep moving off-screen
+      // No next WP => just move off-screen
       enemy.x += enemy.speed * deltaSec;
       return;
     }
 
-    // Move toward next waypoint, which is now the center
+    // Move toward next waypoint
     const tx = nextWP.x;
     const ty = nextWP.y;
     const dx = tx - enemy.x;
@@ -69,8 +145,6 @@ export class EnemyManager {
   }
 
   drawEnemy(ctx, enemy) {
-    // Instead of drawing at (enemy.x, enemy.y) top-left,
-    // we draw so that (enemy.x, enemy.y) is the center
     this.drawImageSafely(
       ctx,
       enemy.image,
@@ -80,13 +154,12 @@ export class EnemyManager {
       enemy.height
     );
 
-    // HP bar if not full
+    // HP bar
     if (enemy.hp < enemy.baseHp) {
       const barW = enemy.width;
       const barH = 4;
       const pct  = Math.max(0, enemy.hp / enemy.baseHp);
 
-      // We also offset the bar by half so it aligns with the center
       const barX = enemy.x - barW / 2;
       const barY = enemy.y - enemy.height / 2 - 6;
 

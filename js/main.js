@@ -1,7 +1,7 @@
+// test Dec 25 11:56 am
 import { Game } from "./game.js";
 import { level1Data } from "./maps/level1.js";
 import { UIManager } from "./uiManager.js";
-// NEW import for unified loading
 import { loadAllAssets } from "./assetLoader.js";
 
 let game = null;
@@ -42,17 +42,19 @@ async function startGameWithGold(startingGold) {
     { name: "trench_walker", src: "assets/enemies/trench_walker.png" },
   ];
 
-  // Unified asset loading
+  // Load images / assets
   const { loadedEnemies, loadedBackground } = await loadAllAssets(
     enemyTypes,
     level1Data.background
   );
 
-  // Configure game with loaded assets
-  game.setEnemyTypes(loadedEnemies);
+  // Provide loaded enemy assets to the EnemyManager
+  game.enemyManager.setLoadedEnemyAssets(loadedEnemies);
+
+  // Configure level data
   game.setLevelData(level1Data, loadedBackground);
 
-  // Override starting gold here
+  // Override starting gold
   game.gold = startingGold;
 
   // Start
@@ -63,10 +65,10 @@ window.addEventListener("load", async () => {
   const startGoldInput = document.getElementById("startingGoldInput");
   const restartGameButton = document.getElementById("restartGameButton");
 
-  // 1) Default (1000 in index.html) or user-supplied
+  // 1) Default or user-supplied gold
   await startGameWithGold(parseInt(startGoldInput.value) || 1000);
 
-  // 2) On "Restart Game", re-init with new gold
+  // 2) On "Restart Game", re-init
   restartGameButton.addEventListener("click", async () => {
     const desiredGold = parseInt(startGoldInput.value) || 0;
     await startGameWithGold(desiredGold);

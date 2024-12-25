@@ -4,6 +4,15 @@ I'm working on a tower defense game.  I'll be sending you complete files that ma
 Before providing the solution, evaluate if the files in question are getting too large and should be split up or otherwise refactored.  Any time there's any evidence of doing the same thing in 2 places identify that.  Summarize any file organization or modularity changes to me and ask me if I want to proceed with them before giving me the solution.
 
 When delivering the solution, always provide the complete new version of only the files that require changes.
+
+=== Local hosting ===
+
+Using command within project directory:
+
+cd /Users/keith/Documents/TABSH
+python3 -m http.server 8000 --bind 0.0.0.0
+http://192.168.0.13:8000
+
 === REPO FILE STRUCTURE ===
 Directories:
   .
@@ -29,6 +38,7 @@ Files:
   css/style.css
   index.html
   js/.DS_Store
+  js/assetLoader.js
   js/dataManager.js
   js/enemyManager.js
   js/game.js
@@ -37,6 +47,8 @@ Files:
   js/towerManager.js
   js/uiManager.js
   js/waveManager.js
+  repo.txt
+  repo_to_text.sh
 
 === FILE CONTENTS ===
 === css/style.css ===
@@ -157,10 +169,17 @@ body {
     <link rel="stylesheet" type="text/css" href="css/style.css">
   </head>
   <body>
-    <!-- Container for Pause & Wave buttons, top-right corner -->
-    <div id="topButtons">
-      <button id="pauseButton" class="actionButton">Pause</button>
-      <button id="sendWaveButton" class="actionButton">Send Next Wave Early</button>
+    <!-- Wrap the canvas + buttons in a container so they're anchored relative to the canvas -->
+    <div id="gameContainer" style="position: relative; width: 800px; margin: 0 auto;">
+      <!-- Game canvas -->
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+      
+      <!-- Container for Speed / Pause & Wave buttons, anchored top-right of the canvas -->
+      <div id="topButtons" style="position: absolute; top: 10px; right: 10px; display: flex; gap: 6px;">
+        <button id="speedToggleButton" class="actionButton">1x</button>
+        <button id="pauseButton" class="actionButton">Pause</button>
+        <button id="sendWaveButton" class="actionButton">Send Next Wave Early</button>
+      </div>
     </div>
 
     <!-- Enemy stats UI (bottom-left) -->
@@ -174,9 +193,6 @@ body {
 
     <!-- Panel for tower creation/upgrade -->
     <div id="towerSelectPanel"></div>
-
-    <!-- Game canvas -->
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
 
     <!-- Bottom bar for debug mode, table, gold input, restart, etc. -->
     <div id="bottomBar">
@@ -207,6 +223,61 @@ body {
     <script type="module" src="./js/main.js"></script>
   </body>
 </html>
+=== js/assetLoader.js ===
+/**
+ * Test
+ * assetLoader.js
+ * 
+ * Provides a unified function to load background and enemy images.
+ */
+
+function preloadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = src;
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+    });
+  }
+  
+  /**
+   * loadAllAssets(enemyTypes, backgroundSrc)
+   * - enemyTypes: array of objects [{ name, src }, ...]
+   * - backgroundSrc: string path to background image
+   * 
+   * Returns { loadedEnemies, loadedBackground }
+   */
+  export async function loadAllAssets(enemyTypes, backgroundSrc) {
+    // 1) Preload background
+    const bgPromise = preloadImage(backgroundSrc);
+  
+    // 2) Preload each enemy
+    const enemyPromises = enemyTypes.map(async (type) => {
+      const img = await preloadImage(type.src);
+      const maxDim = 30;
+      const scale = maxDim / Math.max(img.naturalWidth, img.naturalHeight);
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      return {
+        ...type,
+        image: img,
+        width: w,
+        height: h,
+        speed: 40,
+      };
+    });
+  
+    // Wait for everything
+    const [loadedBackground, ...loadedEnemies] = await Promise.all([
+      bgPromise,
+      ...enemyPromises,
+    ]);
+  
+    return {
+      loadedEnemies,
+      loadedBackground,
+    };
+  }
 === js/dataManager.js ===
 /**
  * dataManager.js
@@ -278,12 +349,11 @@ export class EnemyManager {
       // If the enemy is "dead," remove it immediately
       if (e.dead) return false;
 
-      // If the enemy is off-screen (beyond the right side), decrement lives
-      // We'll assume the path leads to the right side of the canvas
+      // If the enemy is off-screen (beyond the right side?), lose a life
+      // We'll assume the path leads to the right edge.
+      // You can adjust if your path ends somewhere else.
       if (e.x > this.game.width + e.width) {
         this.game.lives -= 1;
-
-        // Check for game over
         if (this.game.lives <= 0) {
           this.game.lives = 0; 
           this.game.paused = true;
@@ -292,7 +362,7 @@ export class EnemyManager {
         return false;
       }
 
-      // Otherwise, keep enemy
+      // Otherwise, keep the enemy
       return true;
     });
   }
@@ -301,14 +371,14 @@ export class EnemyManager {
     const path = this.game.path;
     const nextWP = path[enemy.waypointIndex];
     if (!nextWP) {
-      // No next WP => keep moving off-screen horizontally
+      // No next WP => just keep moving off-screen
       enemy.x += enemy.speed * deltaSec;
       return;
     }
 
-    // Move toward next waypoint
-    const tx = nextWP.x - enemy.width / 2;
-    const ty = nextWP.y - enemy.height / 2;
+    // Move toward next waypoint, which is now the center
+    const tx = nextWP.x;
+    const ty = nextWP.y;
     const dx = tx - enemy.x;
     const dy = ty - enemy.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -325,8 +395,16 @@ export class EnemyManager {
   }
 
   drawEnemy(ctx, enemy) {
-    // Safe image draw
-    this.drawImageSafely(ctx, enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
+    // Instead of drawing at (enemy.x, enemy.y) top-left,
+    // we draw so that (enemy.x, enemy.y) is the center
+    this.drawImageSafely(
+      ctx,
+      enemy.image,
+      enemy.x - enemy.width / 2,
+      enemy.y - enemy.height / 2,
+      enemy.width,
+      enemy.height
+    );
 
     // HP bar if not full
     if (enemy.hp < enemy.baseHp) {
@@ -334,11 +412,15 @@ export class EnemyManager {
       const barH = 4;
       const pct  = Math.max(0, enemy.hp / enemy.baseHp);
 
+      // We also offset the bar by half so it aligns with the center
+      const barX = enemy.x - barW / 2;
+      const barY = enemy.y - enemy.height / 2 - 6;
+
       ctx.fillStyle = "red";
-      ctx.fillRect(enemy.x, enemy.y - 6, barW, barH);
+      ctx.fillRect(barX, barY, barW, barH);
 
       ctx.fillStyle = "lime";
-      ctx.fillRect(enemy.x, enemy.y - 6, barW * pct, barH);
+      ctx.fillRect(barX, barY, barW * pct, barH);
     }
   }
 
@@ -370,11 +452,16 @@ export class Game {
     this.height = canvas.height;
 
     this.gold = 200;
-    this.lives = 20; // <-- Added starting lives
-    this.enemyTypes = [];
+    this.lives = 20;
 
-    // Pause control
-    this.paused = false;
+    // Speed handling (unchanged from previous)
+    this.speedOptions = [1, 2, 4, 0.5]; 
+    this.speedIndex = 0;
+    this.gameSpeed = this.speedOptions[this.speedIndex]; // default = 1x
+
+    // For #2: start paused + label = "Start game"
+    this.isFirstStart = true;
+    this.paused = true;
 
     // Level data
     this.levelData = null;
@@ -401,14 +488,32 @@ export class Game {
       this.waveManager.sendWaveEarly();
     });
 
-    // We also grab #pauseButton from the DOM
+    // Speed toggle button
+    const speedBtn = document.getElementById("speedToggleButton");
+    speedBtn.addEventListener("click", () => {
+      this.speedIndex = (this.speedIndex + 1) % this.speedOptions.length;
+      this.gameSpeed = this.speedOptions[this.speedIndex];
+      speedBtn.textContent = `${this.gameSpeed}x`;
+    });
+
+    // Pause / "Start game" button
     const pauseBtn = document.getElementById("pauseButton");
+    // On fresh load or restart => label "Start game"
+    pauseBtn.textContent = "Start game";
     pauseBtn.addEventListener("click", () => {
+      // If it's the very first click, unpause + set label to "Pause"
+      if (this.isFirstStart) {
+        this.isFirstStart = false;
+        this.paused = false;
+        pauseBtn.textContent = "Pause";
+        return;
+      }
+      // Otherwise, normal pause toggling
       this.paused = !this.paused;
       pauseBtn.textContent = this.paused ? "Resume" : "Pause";
     });
 
-    // Debug toggle from prior code, omitted for brevity ...
+    // Debug toggle
     debugToggle.addEventListener("click", () => {
       this.debugMode = !this.debugMode;
       debugToggle.textContent = this.debugMode
@@ -443,17 +548,59 @@ export class Game {
       occupied: false,
     }));
 
-    // **Load waves into WaveManager now that level data is available**
+    // Load waves into WaveManager
     this.waveManager.loadWavesFromLevel(data);
   }
 
+  /**
+   * Adjust the enemy base HP to be 20% less than before,
+   * and give each enemy a random speed (~ +/-20% from a chosen base).
+   */
   setEnemyTypes(types) {
+    function randomSpeed(base) {
+      const factor = 0.8 + Math.random() * 0.4; // ±20%
+      return base * factor;
+    }
     this.enemyTypes = types.map(e => {
-      if (e.name === "drone")         return { ...e, baseHp: 30,  gold: 5 };
-      if (e.name === "leaf_blower")   return { ...e, baseHp: 60,  gold: 8 };
-      if (e.name === "trench_digger") return { ...e, baseHp: 100, gold: 12 };
-      if (e.name === "trench_walker") return { ...e, baseHp: 150, gold: 15 };
-      return { ...e, baseHp: 50,      gold: 5 };
+      if (e.name === "drone") {
+        return {
+          ...e,
+          baseHp: 30 * 0.8, // 20% less
+          gold: 5,
+          speed: randomSpeed(80),
+        };
+      }
+      if (e.name === "leaf_blower") {
+        return {
+          ...e,
+          baseHp: 60 * 0.8,
+          gold: 8,
+          speed: randomSpeed(60),
+        };
+      }
+      if (e.name === "trench_digger") {
+        return {
+          ...e,
+          baseHp: 100 * 0.8,
+          gold: 12,
+          speed: randomSpeed(30),
+        };
+      }
+      if (e.name === "trench_walker") {
+        return {
+          ...e,
+          baseHp: 150 * 0.8,
+          gold: 15,
+          speed: randomSpeed(25),
+        };
+      }
+      // fallback
+      return {
+        ...e,
+        baseHp: 50 * 0.8,
+        gold: 5,
+        speed: randomSpeed(50),
+      };
     });
   }
 
@@ -462,9 +609,12 @@ export class Game {
   }
 
   gameLoop(timestamp) {
-    const delta = timestamp - this.lastTime || 0;
+    let delta = (timestamp - this.lastTime) || 0;
     this.lastTime = timestamp;
-    const deltaSec = delta / 1000;
+
+    // Convert to seconds, then scale by gameSpeed
+    let deltaSec = delta / 1000;
+    deltaSec *= this.gameSpeed;
 
     // If not paused, update
     if (!this.paused) {
@@ -488,7 +638,6 @@ export class Game {
     }
   }
 
-  // Change cursor to pointer if over a tower spot or enemy
   handleMouseMove(e) {
     const rect = this.canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
@@ -506,15 +655,17 @@ export class Game {
       }
     }
 
-    // Check enemies if not found tower spot
+    // Check enemies
     if (!hoveringClickable) {
       for (const enemy of this.enemies) {
-        if (
-          mx >= enemy.x &&
-          mx <= enemy.x + enemy.width &&
-          my >= enemy.y &&
-          my <= enemy.y + enemy.height
-        ) {
+        // enemy is centered at (enemy.x, enemy.y),
+        // so bounding box is (x - width/2, y - height/2) to (x + width/2, y + height/2)
+        const left   = enemy.x - enemy.width / 2;
+        const right  = enemy.x + enemy.width / 2;
+        const top    = enemy.y - enemy.height / 2;
+        const bottom = enemy.y + enemy.height / 2;
+
+        if (mx >= left && mx <= right && my >= top && my <= bottom) {
           hoveringClickable = true;
           break;
         }
@@ -577,7 +728,7 @@ export class Game {
       10,
       70
     );
-    this.ctx.fillText(`Lives: ${this.lives}`, 10, 90); // <-- Display lives
+    this.ctx.fillText(`Lives: ${this.lives}`, 10, 90);
     if (
       !this.waveManager.waveActive &&
       this.waveManager.waveIndex < this.waveManager.waves.length
@@ -587,6 +738,7 @@ export class Game {
   }
 }
 === js/main.js ===
+// test Dec 25 11:33 am
 import { Game } from "./game.js";
 import { level1Data } from "./maps/level1.js";
 import { UIManager } from "./uiManager.js";
@@ -778,8 +930,8 @@ export class TowerManager {
       {
         type: "point",
         basePrice: 80,
-        // old range: 100 -> +30% => ~130
-        range: 130,
+        // Increase the old 130 range by another 30% => ~169
+        range: 169,
         splashRadius: 0,
         fireRate: 1.5,
         upgrades: [
@@ -792,7 +944,6 @@ export class TowerManager {
       {
         type: "splash",
         basePrice: 80,
-        // old range: 80 -> +30% => ~104
         range: 104,
         splashRadius: 50,
         fireRate: 1.5,
@@ -986,18 +1137,11 @@ export class UIManager {
       this.selectedEnemy = null;
     }
   
-    /**
-     * Build the debug table from TowerManager data
-     */
     initDebugTable() {
-      // Clear existing
       this.debugTable.innerHTML = "";
-  
-      // Grab data from TowerManager
       const towerData = this.game.towerManager.getTowerData();
       if (!towerData.length) return;
   
-      // Build a header row: 3 columns
       const thead = document.createElement("thead");
       const headerRow = document.createElement("tr");
       headerRow.innerHTML = `
@@ -1008,7 +1152,6 @@ export class UIManager {
       thead.appendChild(headerRow);
       this.debugTable.appendChild(thead);
   
-      // Body
       const tbody = document.createElement("tbody");
   
       // Base Price row
@@ -1029,7 +1172,7 @@ export class UIManager {
       for (let i = 0; i < maxUpgrades; i++) {
         const lvl = i + 1;
   
-        // 1) Row for damage at level
+        // damage row
         const rowDamage = document.createElement("tr");
         rowDamage.innerHTML = `
           <td>Level ${lvl} Damage</td>
@@ -1038,7 +1181,7 @@ export class UIManager {
         `;
         tbody.appendChild(rowDamage);
   
-        // 2) Row for upgrade cost (except level 1 which has no upgrade cost)
+        // upgrade cost row (except lvl 1)
         if (lvl > 1) {
           const rowCost = document.createElement("tr");
           rowCost.innerHTML = `
@@ -1053,9 +1196,6 @@ export class UIManager {
       this.debugTable.appendChild(tbody);
     }
   
-    /**
-     * Return a tower spot if (mx,my) is within the "detectionDist" (default 100).
-     */
     getTowerSpotAt(mx, my, detectionDist = 100) {
       return this.game.towerSpots.find(s => {
         const dx = mx - s.x;
@@ -1064,25 +1204,16 @@ export class UIManager {
       });
     }
   
-    /**
-     * Return an enemy if (mx,my) is within the enemy's bounding box.
-     */
     getEnemyAt(mx, my) {
-      return this.game.enemies.find(e =>
-        mx >= e.x &&
-        mx <= e.x + e.width &&
-        my >= e.y &&
-        my <= e.y + e.height
-      );
+      return this.game.enemies.find(e => {
+        const left   = e.x - e.width / 2;
+        const right  = e.x + e.width / 2;
+        const top    = e.y - e.height / 2;
+        const bottom = e.y + e.height / 2;
+        return (mx >= left && mx <= right && my >= top && my <= bottom);
+      });
     }
   
-    /**
-     * Attempt to get either a tower spot or an enemy at (mx,my).
-     * - If we find a tower spot first, return it.
-     * - Otherwise check for enemy.
-     * 
-     * You can invert the order if you prefer giving priority to enemies.
-     */
     getEntityUnderMouse(mx, my) {
       const spot = this.getTowerSpotAt(mx, my);
       if (spot) {
@@ -1095,31 +1226,24 @@ export class UIManager {
       return null;
     }
   
-    /**
-     * Handle canvas clicks for tower creation/upgrade or enemy selection
-     */
     handleCanvasClick(mx, my, rect) {
-      // Check what's under the mouse
       const entity = this.getEntityUnderMouse(mx, my);
   
       if (!entity) {
-        // If clicked empty space, hide panels
+        // clicked empty space, hide panels
         this.selectedEnemy = null;
         this.hideEnemyStats();
         this.hideTowerPanel();
         return;
       }
   
-      // Tower spot or enemy?
       if (entity.type === "towerSpot") {
         const spot = entity.spot;
         const existingTower = this.game.towerManager.towers.find(t => t.spot === spot);
         if (existingTower) {
-          // Show existing tower panel
-          this.showExistingTowerPanel(existingTower, mx + rect.left, my + rect.top);
+          this.showExistingTowerPanel(existingTower, rect);
         } else {
-          // Show tower creation panel
-          this.showNewTowerPanel(spot, mx + rect.left, my + rect.top);
+          this.showNewTowerPanel(spot, rect);
         }
         return;
       }
@@ -1133,39 +1257,16 @@ export class UIManager {
     }
   
     /**
-     * Show tower creation panel
+     * Show panel for an existing tower so that:
+     *   - the bottom center of the panel is just above the tower.
+     *   - the "Upgrade" button is centered.
      */
-    showNewTowerPanel(spot, screenX, screenY) {
+    showExistingTowerPanel(tower, rect) {
       this.towerSelectPanel.innerHTML = "";
-  
-      const towerDefs = this.game.towerManager.getTowerData();
-      towerDefs.forEach(def => {
-        const div = document.createElement("div");
-        div.className = "towerOption";
-        div.textContent = `${def.type.toUpperCase()} - $${def.basePrice}, DMG:${def.upgrades[0].damage}, Rate:${def.fireRate}s`;
-        div.addEventListener("click", () => {
-          if (this.game.gold >= def.basePrice && !spot.occupied) {
-            this.game.gold -= def.basePrice;
-            const newTower = this.game.towerManager.createTower(def.type);
-            newTower.x = spot.x;
-            newTower.y = spot.y;
-            newTower.spot = spot;
-            spot.occupied = true;
-            this.game.towerManager.towers.push(newTower);
-          }
-          this.hideTowerPanel();
-        });
-        this.towerSelectPanel.appendChild(div);
-      });
-  
-      this.positionTowerPanel(screenX, screenY);
-    }
-  
-    /**
-     * Show panel for an existing tower (upgrade info, etc.)
-     */
-    showExistingTowerPanel(tower, screenX, screenY) {
-      this.towerSelectPanel.innerHTML = "";
+      this.towerSelectPanel.style.background = "none"; // remove overall dark background
+      this.towerSelectPanel.style.border = "none";
+      this.towerSelectPanel.style.borderRadius = "0";
+      this.towerSelectPanel.style.textAlign = "center";
   
       const title = document.createElement("div");
       title.style.fontWeight = "bold";
@@ -1180,11 +1281,12 @@ export class UIManager {
       `;
       this.towerSelectPanel.appendChild(currStats);
   
+      // Next-level info if not maxed
       if (tower.level < tower.maxLevel) {
         const nextLevel = tower.level + 1;
         const def = this.game.towerManager.getTowerData().find(d => d.type === tower.type);
         if (def) {
-          const nextDef = def.upgrades[tower.level]; // e.g. tower.level=1 => index=1
+          const nextDef = def.upgrades[tower.level]; // tower.level=1 => index=1
           if (nextDef) {
             const nextDamage = nextDef.damage;
             const cost = nextDef.upgradeCost;
@@ -1217,44 +1319,120 @@ export class UIManager {
         this.towerSelectPanel.appendChild(maxed);
       }
   
-      this.positionTowerPanel(screenX, screenY);
+      // Show, measure, then position
+      this.towerSelectPanel.style.display = "block";
+      const panelW = this.towerSelectPanel.offsetWidth;
+      const panelH = this.towerSelectPanel.offsetHeight;
+  
+      // tower.x, tower.y => canvas coords for the tower center
+      const towerScreenX = tower.x + rect.left;
+      const towerScreenY = tower.y + rect.top;
+  
+      // Place so that the bottom center of the panel is at tower center
+      this.towerSelectPanel.style.left = (towerScreenX - panelW / 2) + "px";
+      this.towerSelectPanel.style.top  = (towerScreenY - panelH) + "px";
     }
   
-    positionTowerPanel(screenX, screenY) {
-      this.towerSelectPanel.style.left = (screenX + 10) + "px";
-      this.towerSelectPanel.style.top = (screenY - 50) + "px";
+    /**
+     * Show tower creation panel with narrower columns, 
+     * price on the button (instead of in the heading), 
+     * separate lines for DMG and Rate, 
+     * reduced gap, 
+     * and no big bounding box behind everything.
+     */
+    showNewTowerPanel(spot, rect) {
+      this.towerSelectPanel.innerHTML = "";
+      // remove the large dark background from the panel itself
+      this.towerSelectPanel.style.background = "none";
+      this.towerSelectPanel.style.border = "none";
+      this.towerSelectPanel.style.borderRadius = "0";
+      this.towerSelectPanel.style.textAlign = "center";
+  
+      // We'll create a row with each tower type side by side
+      const container = document.createElement("div");
+      container.style.display = "flex";
+      container.style.gap = "10px";  // reduce gap by 50% from 20px to 10px
+      container.style.justifyContent = "center";
+      container.style.alignItems = "flex-start";
+  
+      const towerDefs = this.game.towerManager.getTowerData();
+      towerDefs.forEach(def => {
+        // For each tower type, create a sub-div with its own dark background
+        const towerDiv = document.createElement("div");
+        towerDiv.style.background = "rgba(0,0,0,0.7)";
+        towerDiv.style.border = "1px solid #999";
+        towerDiv.style.padding = "4px";
+        towerDiv.style.borderRadius = "4px";
+        towerDiv.style.minWidth = "80px"; // narrower columns
+  
+        // Name only
+        const nameEl = document.createElement("div");
+        nameEl.style.fontWeight = "bold";
+        nameEl.textContent = def.type.toUpperCase();
+        towerDiv.appendChild(nameEl);
+  
+        // DMG and Rate on separate lines
+        const statsEl = document.createElement("div");
+        statsEl.innerHTML = `DMG: ${def.upgrades[0].damage}<br>Rate: ${def.fireRate}s`;
+        towerDiv.appendChild(statsEl);
+  
+        // Use price on the button text
+        const buildBtn = document.createElement("button");
+        buildBtn.textContent = `$${def.basePrice}`;
+        buildBtn.addEventListener("click", () => {
+          if (this.game.gold >= def.basePrice && !spot.occupied) {
+            this.game.gold -= def.basePrice;
+            const newTower = this.game.towerManager.createTower(def.type);
+            newTower.x = spot.x;
+            newTower.y = spot.y;
+            newTower.spot = spot;
+            spot.occupied = true;
+            this.game.towerManager.towers.push(newTower);
+          }
+          this.hideTowerPanel();
+        });
+        towerDiv.appendChild(buildBtn);
+  
+        container.appendChild(towerDiv);
+      });
+  
+      this.towerSelectPanel.appendChild(container);
+  
+      // Show, measure, then position
       this.towerSelectPanel.style.display = "block";
+      const panelW = this.towerSelectPanel.offsetWidth;
+      const panelH = this.towerSelectPanel.offsetHeight;
+  
+      const spotScreenX = spot.x + rect.left;
+      const spotScreenY = spot.y + rect.top;
+  
+      // Place so that the bottom center of the panel is at spot center
+      this.towerSelectPanel.style.left = (spotScreenX - panelW / 2) + "px";
+      this.towerSelectPanel.style.top  = (spotScreenY - panelH) + "px";
     }
   
     hideTowerPanel() {
       this.towerSelectPanel.style.display = "none";
     }
   
-    /**
-     * Show enemy stats in the bottom-left panel
-     */
     showEnemyStats(enemy) {
       this.enemyStatsDiv.style.display = "block";
-      this.enemyImage.src         = enemy.src; // or use enemy.image.src if you prefer
-      this.enemyNameEl.textContent  = enemy.name;
-      this.enemyHpEl.textContent    = `${enemy.hp}/${enemy.baseHp}`;
-      this.enemySpeedEl.textContent = enemy.speed;
-      this.enemyGoldEl.textContent  = enemy.gold;
+      this.enemyImage.src          = enemy.src;
+      this.enemyNameEl.textContent = enemy.name;
+      this.enemyHpEl.textContent   = `${enemy.hp}/${enemy.baseHp}`;
+      this.enemySpeedEl.textContent= enemy.speed.toFixed(1);
+      this.enemyGoldEl.textContent = enemy.gold;
     }
   
     hideEnemyStats() {
       this.enemyStatsDiv.style.display = "none";
     }
   
-    /**
-     * Handle mouse move for updating the cursor
-     */
     handleMouseMove(e) {
       const rect = this.game.canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
   
-      // Check if something clickable is under the mouse
       const entity = this.getEntityUnderMouse(mx, my);
       this.game.canvas.style.cursor = entity ? "pointer" : "default";
     }
@@ -1267,14 +1445,12 @@ export class WaveManager {
     this.waveIndex = 0;
     this.waveActive = false;
 
-    // No forced timeBetweenWaves
+    // We'll keep timeUntilNextWave=0 so that as soon as the game unpauses, wave can start
     this.timeUntilNextWave = 0;
 
-    // We'll load waves later, once level data is set
     this.waves = [];
   }
 
-  // Called after setLevelData() in Game
   loadWavesFromLevel(levelData) {
     this.waves = (levelData && levelData.waves) || [];
     console.log("Waves loaded (reloaded):", this.waves);
@@ -1292,16 +1468,13 @@ export class WaveManager {
     // Check if wave is done
     if (this.waveActive) {
       const waveInfo = this.waves[this.waveIndex];
-      // If all groups are fully spawned and no enemies left, wave is done
-      const allSpawned =
-        waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
+      // If all groups are fully spawned and no enemies remain, wave is done
+      const allSpawned = waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
       if (allSpawned && this.game.enemies.length === 0) {
         // wave done
         this.waveActive = false;
         this.waveIndex++;
-
-        // No downtime between waves in your setup
-        this.timeUntilNextWave = 0;
+        this.timeUntilNextWave = 0; // no forced delay for next wave
       }
     }
   }
@@ -1335,18 +1508,18 @@ export class WaveManager {
     // The actual spawn
     if (!this.game.path.length) return;
     const firstWP = this.game.path[0];
+    // Place the enemy's center on the first waypoint
     this.game.enemies.push({
       ...eType,
-      x: firstWP.x - eType.width / 2,
-      y: firstWP.y - eType.height / 2,
+      x: firstWP.x,
+      y: firstWP.y,
       hp,
-      baseHp: eType.baseHp, // for showing HP bar fraction
+      baseHp: eType.baseHp,
       waypointIndex: 1,
       dead: false,
     });
   }
 
-  // Pressing "Send Next Wave Early" => if no wave is active, start next wave
   sendWaveEarly() {
     if (!this.waveActive && this.waveIndex < this.waves.length) {
       this.startWave(this.waveIndex);

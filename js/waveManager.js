@@ -5,7 +5,7 @@ export class WaveManager {
     this.waveIndex = 0;
     this.waveActive = false;
 
-    // We'll keep timeUntilNextWave=0 so that as soon as the game unpauses, wave can start
+    // Start with no forced delay; wave can start immediately if unpaused
     this.timeUntilNextWave = 0;
 
     this.waves = [];
@@ -17,7 +17,7 @@ export class WaveManager {
   }
 
   update(deltaSec) {
-    // If wave not active, see if there's a wave to start
+    // If wave not active, see if there's another wave to start
     if (!this.waveActive && this.waveIndex < this.waves.length) {
       this.timeUntilNextWave -= deltaSec;
       if (this.timeUntilNextWave <= 0) {
@@ -25,16 +25,16 @@ export class WaveManager {
       }
     }
 
-    // Check if wave is done
+    // Check if the current wave is finished
     if (this.waveActive) {
       const waveInfo = this.waves[this.waveIndex];
-      // If all groups are fully spawned and no enemies remain, wave is done
       const allSpawned = waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
       if (allSpawned && this.game.enemies.length === 0) {
         // wave done
         this.waveActive = false;
         this.waveIndex++;
-        this.timeUntilNextWave = 0; // no forced delay for next wave
+        // no forced delay for next wave
+        this.timeUntilNextWave = 0;
       }
     }
   }
@@ -43,9 +43,9 @@ export class WaveManager {
     this.waveActive = true;
     const waveInfo = this.waves[index];
 
-    // For each group, spawn them in parallel
-    waveInfo.enemyGroups.forEach((group) => {
-      group.spawnedCount = 0; // track how many have spawned
+    // For each group, spawn them over time (parallel if intervals overlap)
+    waveInfo.enemyGroups.forEach(group => {
+      group.spawnedCount = 0;
       const timer = setInterval(() => {
         if (group.spawnedCount >= group.count) {
           clearInterval(timer);
@@ -58,26 +58,8 @@ export class WaveManager {
   }
 
   spawnEnemyGroup(group) {
-    // Find the matching enemy type
-    const eType = this.game.enemyTypes.find(e => e.name === group.type)
-                   || this.game.enemyTypes[0]; // fallback if not found
-
-    // Calculate HP from multiplier
-    const hp = Math.floor(eType.baseHp * group.hpMultiplier);
-
-    // The actual spawn
-    if (!this.game.path.length) return;
-    const firstWP = this.game.path[0];
-    // Place the enemy's center on the first waypoint
-    this.game.enemies.push({
-      ...eType,
-      x: firstWP.x,
-      y: firstWP.y,
-      hp,
-      baseHp: eType.baseHp,
-      waypointIndex: 1,
-      dead: false,
-    });
+    // Use the consolidated logic in enemyManager
+    this.game.enemyManager.spawnEnemy(group.type, group.hpMultiplier);
   }
 
   sendWaveEarly() {

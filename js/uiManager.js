@@ -140,9 +140,11 @@ export class UIManager {
      *   - the "Upgrade" button is centered.
      */
     showExistingTowerPanel(tower, rect) {
-      // Clear + build content
       this.towerSelectPanel.innerHTML = "";
-      this.towerSelectPanel.style.textAlign = "center"; // center everything inside
+      this.towerSelectPanel.style.background = "none"; // remove overall dark background
+      this.towerSelectPanel.style.border = "none";
+      this.towerSelectPanel.style.borderRadius = "0";
+      this.towerSelectPanel.style.textAlign = "center";
   
       const title = document.createElement("div");
       title.style.fontWeight = "bold";
@@ -167,7 +169,7 @@ export class UIManager {
             const nextDamage = nextDef.damage;
             const cost = nextDef.upgradeCost;
             const nextRate = Math.max(0.8, tower.fireRate - 0.2).toFixed(2);
-    
+  
             const nextStats = document.createElement("div");
             nextStats.innerHTML = `
               <hr>
@@ -177,7 +179,7 @@ export class UIManager {
               Upgrade Cost: $${cost}
             `;
             this.towerSelectPanel.appendChild(nextStats);
-    
+  
             const upgradeBtn = document.createElement("button");
             upgradeBtn.textContent = "Upgrade";
             upgradeBtn.disabled = (this.game.gold < cost);
@@ -210,39 +212,51 @@ export class UIManager {
     }
   
     /**
-     * Show tower creation panel similarly above a tower spot.
-     * Display each tower side-by-side horizontally with a button at the bottom.
+     * Show tower creation panel with narrower columns, 
+     * price on the button (instead of in the heading), 
+     * separate lines for DMG and Rate, 
+     * reduced gap, 
+     * and no big bounding box behind everything.
      */
     showNewTowerPanel(spot, rect) {
       this.towerSelectPanel.innerHTML = "";
+      // remove the large dark background from the panel itself
+      this.towerSelectPanel.style.background = "none";
+      this.towerSelectPanel.style.border = "none";
+      this.towerSelectPanel.style.borderRadius = "0";
       this.towerSelectPanel.style.textAlign = "center";
   
       // We'll create a row with each tower type side by side
       const container = document.createElement("div");
       container.style.display = "flex";
-      container.style.gap = "20px";
+      container.style.gap = "10px";  // reduce gap by 50% from 20px to 10px
       container.style.justifyContent = "center";
       container.style.alignItems = "flex-start";
   
       const towerDefs = this.game.towerManager.getTowerData();
       towerDefs.forEach(def => {
-        // For each tower type, create a sub-div
+        // For each tower type, create a sub-div with its own dark background
         const towerDiv = document.createElement("div");
+        towerDiv.style.background = "rgba(0,0,0,0.7)";
         towerDiv.style.border = "1px solid #999";
-        towerDiv.style.padding = "6px";
+        towerDiv.style.padding = "4px";
         towerDiv.style.borderRadius = "4px";
+        towerDiv.style.minWidth = "80px"; // narrower columns
   
+        // Name only
         const nameEl = document.createElement("div");
         nameEl.style.fontWeight = "bold";
-        nameEl.textContent = `${def.type.toUpperCase()} - $${def.basePrice}`;
+        nameEl.textContent = def.type.toUpperCase();
         towerDiv.appendChild(nameEl);
   
+        // DMG and Rate on separate lines
         const statsEl = document.createElement("div");
-        statsEl.innerHTML = `DMG: ${def.upgrades[0].damage}, Rate: ${def.fireRate}s`;
+        statsEl.innerHTML = `DMG: ${def.upgrades[0].damage}<br>Rate: ${def.fireRate}s`;
         towerDiv.appendChild(statsEl);
   
+        // Use price on the button text
         const buildBtn = document.createElement("button");
-        buildBtn.textContent = "Build";
+        buildBtn.textContent = `$${def.basePrice}`;
         buildBtn.addEventListener("click", () => {
           if (this.game.gold >= def.basePrice && !spot.occupied) {
             this.game.gold -= def.basePrice;
