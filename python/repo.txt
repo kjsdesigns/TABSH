@@ -1,0 +1,9 @@
+=== README.md CONTENT ===
+No README.md found in this directory.
+
+=== REPO FILE STRUCTURE ===
+Directories:
+
+Files:
+
+=== FILE CONTENTS ===
