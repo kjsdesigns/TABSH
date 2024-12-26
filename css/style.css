@@ -15,7 +15,7 @@ body {
     margin: 0 auto;
 }
 
-/* Top-right buttons (Pause, Wave, Speed) container */
+/* Top-right buttons (Pause, Speed, Settings) container */
 #topButtons {
     position: absolute;
     top: 10px;
@@ -27,7 +27,7 @@ body {
 /* Make all buttons more tap-friendly */
 button,
 .actionButton {
-    padding: 4px 8px; /* 2px more on each side than before */
+    padding: 6px 10px; /* 2px more all around than before */
     cursor: pointer;
 }
 
@@ -75,65 +75,54 @@ button,
     color: #fff;
 }
 
-/* Bottom bar container */
-#bottomBar {
-    width: 800px;
-    margin: 0 auto;
-    margin-top: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-
-/* Left debug controls container */
-.debugControls {
-    margin-bottom: 6px;
-}
-
-/* Debug toggle text */
-#debugToggle {
-    cursor: pointer;
-    margin-bottom: 6px;
-}
-
-/* Hide the debug table container by default (shown if debug mode is on) */
-#debugTableContainer {
+/* Settings dialog */
+#settingsDialog {
     display: none;
-}
-
-/* The debug table itself */
-#debugTable {
-    border-collapse: collapse;
-    border: 1px solid #999; /* Or you can remove if you prefer */
-}
-
-/* Starting gold input spacing */
-#startingGoldInput {
-    width: 60px;
-    margin-left: 4px;
-    margin-right: 8px;
-}
-
-/* Restart button spacing */
-#restartGameButton {
-    margin-top: 4px;
-}
-
-/* Game Over Dialog */
-#gameOverDialog {
     position: fixed;
     top: 50%;
+    left: 50%;
+    width: 300px;
+    background: rgba(0,0,0,0.85);
+    border: 2px solid #999;
+    border-radius: 8px;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    padding: 10px;
+}
+
+/* Close button for the settings dialog */
+#settingsDialogClose {
+    float: right;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+/* Lose / Win messages (dialog style) */
+#loseMessage,
+#winMessage {
+    display: none;
+    text-align: center;
+    font-family: sans-serif;
+    margin-top: 20px;
+    position: fixed;
+    top: 40%;
     left: 50%;
     transform: translate(-50%, -50%);
     background: rgba(0,0,0,0.85);
     border: 2px solid #999;
     padding: 20px;
     border-radius: 8px;
-    z-index: 9999; /* ensure on top */
-    text-align: center;
+    z-index: 9999;
 }
 
-#gameOverMessage {
-    font-size: 20px;
-    margin-bottom: 12px;
+/* Debug table styling */
+#debugTable {
+    border-collapse: collapse;
+    border: 1px solid #999;
+}
+
+#debugTable th,
+#debugTable td {
+    padding: 4px 8px;
+    border: 1px solid #666;
 }

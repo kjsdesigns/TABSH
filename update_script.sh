@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# === Overwrite index.html ===
+# Overwrite index.html
 cat << 'EOF' > index.html
 <!DOCTYPE html>
 <html>
@@ -11,15 +11,17 @@ cat << 'EOF' > index.html
   </head>
   <body>
     <!-- Wrap the canvas + buttons in a container so they're anchored relative to the canvas -->
-    <div id="gameContainer" style="position: relative; width: 800px; margin: 0 auto;">
+    <div id="gameContainer">
       <!-- Game canvas -->
       <canvas id="gameCanvas" width="800" height="600"></canvas>
       
-      <!-- Container for Speed / Pause & Wave buttons, anchored top-right of the canvas -->
-      <div id="topButtons" style="position: absolute; top: 10px; right: 10px; display: flex; gap: 6px;">
+      <!-- Container for speed, pause, settings buttons (top-right) -->
+      <div id="topButtons">
         <button id="speedToggleButton" class="actionButton">1x</button>
-        <button id="pauseButton" class="actionButton">Start game</button>
-        <button id="sendWaveButton" class="actionButton">Send Next Wave Early</button>
+        <!-- Pause/Resume button with icons -->
+        <button id="pauseButton" class="actionButton">&#9658;</button>
+        <!-- Gear icon for settings -->
+        <button id="settingsButton" class="actionButton">&#9881;</button>
       </div>
     </div>
 
@@ -35,45 +37,33 @@ cat << 'EOF' > index.html
     <!-- Panel for tower creation/upgrade -->
     <div id="towerSelectPanel"></div>
 
-    <!-- Bottom bar for debug mode, table, gold input, restart, etc. -->
-    <div id="bottomBar" style="width: 800px; margin: 0 auto; margin-top: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
-      <!-- Left side: debug controls -->
-      <div class="debugControls">
-        <!-- Instead of debug toggle, show current game parameters -->
-        <div id="currentGameLabel" style="margin-bottom: 6px; font-weight: bold;">
-          Current game: Starting gold: ???, Enemy HP: ???%
+    <!-- Settings dialog (hidden by default) -->
+    <div id="settingsDialog">
+      <div id="settingsDialogClose">&#10006;</div>
+      <div id="settingsContent">
+        <!-- Starting gold + restart -->
+        <div style="margin-bottom: 8px;">
+          <label for="startingGoldInput">Starting gold</label>
+          <input type="number" id="startingGoldInput" value="1000" />
+          <button id="restartGameButton">Restart Game</button>
         </div>
-        
-        <!-- "Starting gold" + "Restart Game" row -->
-        <label for="startingGoldInput">Starting gold</label>
-        <input
-          type="number"
-          id="startingGoldInput"
-          value="1000"
-        />
-        <button id="restartGameButton">Restart Game</button>
-
-        <!-- Button to cycle enemy HP from 80-120% in increments of 5% (default 100%) -->
-        <div style="margin-top: 6px;">
-          <button id="enemyHpButton">Enemy HP: 100%</button>
+        <!-- Enemy HP segmented toggle -->
+        <div id="enemyHpSegment" style="margin-bottom: 10px;">
+          <!-- Populated by main.js -->
         </div>
-
-        <!-- Debug table container (always on) -->
-        <div id="debugTableContainer" style="display: block; margin-top: 10px;">
+        <!-- Debug table container -->
+        <div id="debugTableContainer" style="margin-top: 10px;">
           <table id="debugTable"></table>
         </div>
       </div>
-
-      <!-- Right side placeholder (empty) -->
-      <div></div>
     </div>
 
-    <!-- End-game messages (no overlay) -->
-    <div id="loseMessage" style="display: none; text-align: center; color: red; font-family: sans-serif; margin-top: 20px;">
+    <!-- End-game messages (overlays) -->
+    <div id="loseMessage">
       <h1 style="font-size: 3em; margin: 0;">You lost</h1>
       <div style="font-size: 6em;">X</div>
     </div>
-    <div id="winMessage" style="display: none; text-align: center; color: gold; font-family: sans-serif; margin-top: 20px;">
+    <div id="winMessage">
       <h1 style="font-size: 3em; margin: 0;">You win!</h1>
       <div id="winStars" style="font-size: 4em; color: gold; margin-top: 10px;"></div>
     </div>
@@ -83,118 +73,139 @@ cat << 'EOF' > index.html
 </html>
 EOF
 
-# === Overwrite js/main.js ===
-cat << 'EOF' > js/main.js
-// test Dec 25 11:56 am
-import { Game } from "./game.js";
-import { level1Data } from "./maps/level1.js";
-import { UIManager } from "./uiManager.js";
-import { loadAllAssets } from "./assetLoader.js";
-
-/**
- * Global parameters the user can set before starting the game:
- * - enemyHpPercent: 80% to 120%, default 100
- */
-let enemyHpPercent = 100;
-
-let game = null;
-
-/**
- * Reusable function to start (or restart) the game with chosen gold.
- */
-async function startGameWithGold(startingGold) {
-  const canvas = document.getElementById("gameCanvas");
-  const pauseBtn = document.getElementById("pauseButton");
-  const sendWaveBtn = document.getElementById("sendWaveButton");
-  const enemyStatsDiv = document.getElementById("enemyStats");
-  const towerSelectPanel = document.getElementById("towerSelectPanel");
-  const debugTableContainer = document.getElementById("debugTableContainer");
-  const debugTable = document.getElementById("debugTable");
-  const loseMessage = document.getElementById("loseMessage");
-  const winMessage = document.getElementById("winMessage");
-
-  // Clear any end-game messages
-  loseMessage.style.display = "none";
-  winMessage.style.display = "none";
-  winMessage.querySelector("#winStars").innerHTML = "";
-
-  // Create new Game
-  game = new Game(
-    canvas,
-    sendWaveBtn,
-    enemyStatsDiv,
-    towerSelectPanel,
-    debugTableContainer
-  );
-
-  // UI Manager
-  const uiManager = new UIManager(game, enemyStatsDiv, towerSelectPanel, debugTable, loseMessage, winMessage);
-  uiManager.initDebugTable();
-  game.uiManager = uiManager;
-
-  // This factor (0.8 -> 1.2) is applied on top of each enemy's normal HP
-  game.globalEnemyHpMultiplier = enemyHpPercent / 100;
-
-  // Enemy definitions for loading
-  const enemyTypes = [
-    { name: "drone",         src: "assets/enemies/drone.png" },
-    { name: "leaf_blower",   src: "assets/enemies/leaf_blower.png" },
-    { name: "trench_digger", src: "assets/enemies/trench_digger.png" },
-    { name: "trench_walker", src: "assets/enemies/trench_walker.png" },
-  ];
-
-  // Load images / assets
-  const { loadedEnemies, loadedBackground } = await loadAllAssets(
-    enemyTypes,
-    level1Data.background
-  );
-
-  // Provide loaded enemy assets to the EnemyManager
-  game.enemyManager.setLoadedEnemyAssets(loadedEnemies);
-
-  // Configure level data
-  game.setLevelData(level1Data, loadedBackground);
-
-  // Override starting gold
-  game.gold = startingGold;
-
-  // Start
-  game.start();
-
-  // Update the "current game" label
-  const currentGameLabel = document.getElementById("currentGameLabel");
-  currentGameLabel.textContent = `Current game: Starting gold: ${startingGold}, Enemy HP: ${enemyHpPercent}%`;
+# Overwrite css/style.css
+cat << 'EOF' > css/style.css
+/* Make the body relatively positioned, so absolutely positioned elements anchor to it */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #333;
+    color: #eee;
+    font-family: sans-serif;
+    position: relative;
 }
 
-window.addEventListener("load", async () => {
-  const startGoldInput = document.getElementById("startingGoldInput");
-  const restartGameButton = document.getElementById("restartGameButton");
-  const enemyHpButton = document.getElementById("enemyHpButton");
+/* Game Container */
+#gameContainer {
+    position: relative;
+    width: 800px;
+    margin: 0 auto;
+}
 
-  // 1) Default or user-supplied gold
-  await startGameWithGold(parseInt(startGoldInput.value) || 1000);
+/* Top-right buttons (Pause, Speed, Settings) container */
+#topButtons {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 6px;
+}
 
-  // 2) On "Restart Game", re-init
-  restartGameButton.addEventListener("click", async () => {
-    const desiredGold = parseInt(startGoldInput.value) || 0;
-    await startGameWithGold(desiredGold);
-  });
+/* Make all buttons more tap-friendly */
+button,
+.actionButton {
+    padding: 6px 10px; /* 2px more all around than before */
+    cursor: pointer;
+}
 
-  // 3) Enemy HP toggle (cycles 80->85->90-> ... ->120->80 etc.)
-  const possibleHpValues = [];
-  for(let v=80; v<=120; v+=5) {
-    possibleHpValues.push(v);
-  }
-  let hpIndex = possibleHpValues.indexOf(100);
-  enemyHpButton.addEventListener("click", () => {
-    hpIndex = (hpIndex + 1) % possibleHpValues.length;
-    enemyHpPercent = possibleHpValues[hpIndex];
-    enemyHpButton.textContent = `Enemy HP: ${enemyHpPercent}%`;
-  });
-});
+/* Action buttons share these styles */
+.actionButton {
+    background-color: #800;  /* Dark red */
+    color: #fff;
+    border: 1px solid #600;
+    font-size: 12px;
+    border-radius: 3px;
+}
+
+.actionButton:hover {
+    background-color: #a00;  /* Slightly lighter on hover */
+}
+
+/* Game canvas styling (center + border) */
+#gameCanvas {
+    display: block;
+    margin: 0 auto;
+    background-color: #000;
+    border: 2px solid #aaa;
+}
+
+/* Enemy stats panel at bottom-left */
+#enemyStats {
+    display: none;
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 6px;
+    border: 1px solid #999;
+    border-radius: 3px;
+}
+
+/* Tower creation/upgrade panel */
+#towerSelectPanel {
+    display: none;
+    position: absolute;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid #999;
+    border-radius: 3px;
+    padding: 5px;
+    color: #fff;
+}
+
+/* Settings dialog */
+#settingsDialog {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 300px;
+    background: rgba(0,0,0,0.85);
+    border: 2px solid #999;
+    border-radius: 8px;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    padding: 10px;
+}
+
+/* Close button for the settings dialog */
+#settingsDialogClose {
+    float: right;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+/* Lose / Win messages (dialog style) */
+#loseMessage,
+#winMessage {
+    display: none;
+    text-align: center;
+    font-family: sans-serif;
+    margin-top: 20px;
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85);
+    border: 2px solid #999;
+    padding: 20px;
+    border-radius: 8px;
+    z-index: 9999;
+}
+
+/* Debug table styling */
+#debugTable {
+    border-collapse: collapse;
+    border: 1px solid #999;
+}
+
+#debugTable th,
+#debugTable td {
+    padding: 4px 8px;
+    border: 1px solid #666;
+}
 EOF
 
-# === Overwrite js/game.js ===
+# Overwrite js/game.js
 cat << 'EOF' > js/game.js
 import { EnemyManager } from "./enemyManager.js";
 import { TowerManager } from "./towerManager.js";
@@ -203,7 +214,6 @@ import { WaveManager }  from "./waveManager.js";
 export class Game {
   constructor(
     canvas,
-    sendWaveBtn,
     enemyStatsDiv,
     towerSelectPanel,
     debugTableContainer
@@ -223,7 +233,7 @@ export class Game {
     this.speedIndex = 0;
     this.gameSpeed = this.speedOptions[this.speedIndex];
 
-    // Start paused, label will say "Start game"
+    // Start paused, label will show icon "▶" initially
     this.isFirstStart = true;
     this.paused = true;
 
@@ -236,7 +246,7 @@ export class Game {
     // Enemies
     this.enemies = [];
 
-    // Global enemy HP multiplier (set from outside)
+    // Global enemy HP multiplier (set from outside; includes the 0.5 factor)
     this.globalEnemyHpMultiplier = 1.0;
 
     // Managers
@@ -247,12 +257,21 @@ export class Game {
     // Main loop
     this.lastTime = 0;
 
-    // Debug mode is always on now
+    // Debug mode always on now
     this.debugMode = true;
 
-    // Hook up wave button
-    sendWaveBtn.addEventListener("click", () => {
-      this.waveManager.sendWaveEarly();
+    // Pause/Resume button
+    const pauseBtn = document.getElementById("pauseButton");
+    pauseBtn.innerHTML = "&#9658;"; // "▶"
+    pauseBtn.addEventListener("click", () => {
+      if (this.isFirstStart) {
+        this.isFirstStart = false;
+        this.paused = false;
+        pauseBtn.innerHTML = "&#10073;&#10073;"; // "⏸"
+        return;
+      }
+      this.paused = !this.paused;
+      pauseBtn.innerHTML = this.paused ? "&#9658;" : "&#10073;&#10073;";
     });
 
     // Speed toggle button
@@ -261,20 +280,6 @@ export class Game {
       this.speedIndex = (this.speedIndex + 1) % this.speedOptions.length;
       this.gameSpeed = this.speedOptions[this.speedIndex];
       speedBtn.textContent = `${this.gameSpeed}x`;
-    });
-
-    // Pause / "Start game" button
-    const pauseBtn = document.getElementById("pauseButton");
-    pauseBtn.textContent = "Start game";
-    pauseBtn.addEventListener("click", () => {
-      if (this.isFirstStart) {
-        this.isFirstStart = false;
-        this.paused = false;
-        pauseBtn.textContent = "Pause";
-        return;
-      }
-      this.paused = !this.paused;
-      pauseBtn.textContent = this.paused ? "Resume" : "Pause";
     });
 
     // Canvas click
@@ -292,6 +297,7 @@ export class Game {
       x: pt.x * scaleX,
       y: pt.y * scaleY,
     }));
+    // Tower spots 2x bigger => store them, but we'll draw radius 20
     this.towerSpots = data.towerSpots.map(s => ({
       x: s.x * scaleX,
       y: s.y * scaleY,
@@ -353,15 +359,15 @@ export class Game {
     // Towers
     this.towerManager.drawTowers(this.ctx);
 
-    // Tower spots (debug overlay)
+    // Tower spots (debug overlay) - radius 20
     this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
     this.towerSpots.forEach((spot, i) => {
       this.ctx.beginPath();
-      this.ctx.arc(spot.x, spot.y, 10, 0, Math.PI * 2);
+      this.ctx.arc(spot.x, spot.y, 20, 0, Math.PI * 2);
       this.ctx.fill();
       if (this.debugMode) {
         this.ctx.fillStyle = "white";
-        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 15);
+        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 25);
         this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
       }
     });
@@ -399,274 +405,147 @@ export class Game {
 }
 EOF
 
-# === Overwrite js/enemyManager.js ===
-cat << 'EOF' > js/enemyManager.js
-export class EnemyManager {
-  constructor(game) {
-    this.game = game;
+# Overwrite js/main.js
+cat << 'EOF' > js/main.js
+import { Game } from "./game.js";
+import { level1Data } from "./maps/level1.js";
+import { UIManager } from "./uiManager.js";
+import { loadAllAssets } from "./assetLoader.js";
 
-    // Internal data: "raw" stats before HP multipliers or random speed factor.
-    // We'll apply the 20% global HP reduction on spawn, plus any wave multiplier,
-    // plus the global game multiplier (game.globalEnemyHpMultiplier).
-    this.enemyBaseData = {
-      drone: {
-        baseHp: 30,
-        gold: 5,
-        baseSpeed: 80,
-      },
-      leaf_blower: {
-        baseHp: 60,
-        gold: 8,
-        baseSpeed: 60,
-      },
-      trench_digger: {
-        baseHp: 100,
-        gold: 12,
-        baseSpeed: 30,
-      },
-      trench_walker: {
-        baseHp: 150,
-        gold: 15,
-        baseSpeed: 25,
-      },
-    };
+/**
+ * Global parameters the user can set before starting the game:
+ * - enemyHpPercent: now default 100, but we treat that as "50% of old baseline"
+ *   => new globalEnemyHpMultiplier = 0.5 * (enemyHpPercent / 100).
+ */
+let enemyHpPercent = 100;
 
-    // Holds the loaded images, widths, heights, etc. from assetLoader.js
-    this.loadedEnemyAssets = [];
-  }
+let game = null;
 
-  setLoadedEnemyAssets(loadedEnemies) {
-    this.loadedEnemyAssets = loadedEnemies;
-  }
+/**
+ * Reusable function to start (or restart) the game with chosen gold.
+ */
+async function startGameWithGold(startingGold) {
+  const canvas = document.getElementById("gameCanvas");
+  const pauseBtn = document.getElementById("pauseButton");
+  const enemyStatsDiv = document.getElementById("enemyStats");
+  const towerSelectPanel = document.getElementById("towerSelectPanel");
+  const debugTableContainer = document.getElementById("debugTableContainer");
+  const loseMessage = document.getElementById("loseMessage");
+  const winMessage = document.getElementById("winMessage");
 
-  spawnEnemy(type, hpMultiplier = 1) {
-    const baseData = this.enemyBaseData[type] || this.enemyBaseData["drone"];
-    // Find matching image asset
-    const asset = this.loadedEnemyAssets.find(e => e.name === type)
-      || this.loadedEnemyAssets[0];
+  // Clear any end-game messages
+  loseMessage.style.display = "none";
+  winMessage.style.display = "none";
+  const starsElem = winMessage.querySelector("#winStars");
+  if (starsElem) starsElem.innerHTML = "";
 
-    // 20% global HP reduction, wave multiplier, plus global game multiplier
-    const finalHp = baseData.baseHp
-                    * 0.8
-                    * hpMultiplier
-                    * this.game.globalEnemyHpMultiplier;
+  // Create new Game
+  game = new Game(
+    canvas,
+    enemyStatsDiv,
+    towerSelectPanel,
+    debugTableContainer
+  );
 
-    // Random speed ~ ±20% around baseSpeed
-    const speedFactor = 0.8 + Math.random() * 0.4;
-    const finalSpeed = baseData.baseSpeed * speedFactor;
+  // UI Manager
+  const uiManager = new UIManager(game, enemyStatsDiv, towerSelectPanel, debugTableContainer, loseMessage, winMessage);
+  uiManager.initDebugTable();
+  game.uiManager = uiManager;
 
-    // Start at path[0]
-    const path = this.game.path;
-    if (!path || path.length === 0) {
-      console.warn("No path defined in Game; cannot spawn enemy properly.");
-      return;
-    }
-    const firstWP = path[0];
+  // This factor is 0.5 * (enemyHpPercent / 100) => new 100% = old 50%
+  game.globalEnemyHpMultiplier = 0.5 * (enemyHpPercent / 100);
 
-    // Create enemy object
-    const enemy = {
-      name: type,
-      image: asset.image,
-      width: asset.width,
-      height: asset.height,
-      x: firstWP.x,
-      y: firstWP.y,
-      hp: finalHp,
-      baseHp: finalHp,
-      speed: finalSpeed,
-      gold: baseData.gold,
-      waypointIndex: 1,
-      dead: false,
-    };
+  // Enemy definitions for loading
+  const enemyTypes = [
+    { name: "drone",         src: "assets/enemies/drone.png" },
+    { name: "leaf_blower",   src: "assets/enemies/leaf_blower.png" },
+    { name: "trench_digger", src: "assets/enemies/trench_digger.png" },
+    { name: "trench_walker", src: "assets/enemies/trench_walker.png" },
+  ];
 
-    // Add to game.enemies
-    this.game.enemies.push(enemy);
-  }
+  // Load images / assets
+  const { loadedEnemies, loadedBackground } = await loadAllAssets(
+    enemyTypes,
+    level1Data.background
+  );
 
-  update(deltaSec) {
-    // Move enemies, handle death
-    this.game.enemies.forEach(e => {
-      this.updateEnemy(e, deltaSec);
-      if (e.hp <= 0) {
-        this.game.gold += e.gold || 0;
-        e.dead = true;
-        // If this was the selected enemy, clear selection
-        if (this.game.uiManager && this.game.uiManager.selectedEnemy === e) {
-          this.game.uiManager.selectedEnemy = null;
-          this.game.uiManager.hideEnemyStats();
-        }
-      }
-    });
+  // Provide loaded enemy assets to the EnemyManager
+  game.enemyManager.setLoadedEnemyAssets(loadedEnemies);
 
-    // Remove dead enemies or enemies that leave the screen
-    this.game.enemies = this.game.enemies.filter(e => {
-      if (e.dead) return false;
+  // Configure level data
+  game.setLevelData(level1Data, loadedBackground);
 
-      // If the enemy is off-screen (x > this.game.width + e.width),
-      // lose a life
-      if (e.x > this.game.width + e.width) {
-        this.game.lives -= 1;
-        if (this.game.lives <= 0) {
-          this.game.lives = 0;
-          // Use UI manager to show "You lost"
-          if (this.game.uiManager) {
-            this.game.paused = true;
-            this.game.uiManager.showLoseDialog();
-          }
-        }
-        return false;
-      }
-      return true;
-    });
-  }
+  // Override starting gold
+  game.gold = startingGold;
 
-  updateEnemy(enemy, deltaSec) {
-    const path = this.game.path;
-    const nextWP = path[enemy.waypointIndex];
-    if (!nextWP) {
-      // No next WP => move off-screen
-      enemy.x += enemy.speed * deltaSec;
-      return;
-    }
-
-    // Move toward next waypoint
-    const tx = nextWP.x;
-    const ty = nextWP.y;
-    const dx = tx - enemy.x;
-    const dy = ty - enemy.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const step = enemy.speed * deltaSec;
-
-    if (dist <= step) {
-      enemy.x = tx;
-      enemy.y = ty;
-      enemy.waypointIndex++;
-    } else {
-      enemy.x += (dx / dist) * step;
-      enemy.y += (dy / dist) * step;
-    }
-  }
-
-  drawEnemy(ctx, enemy) {
-    this.drawImageSafely(
-      ctx,
-      enemy.image,
-      enemy.x - enemy.width / 2,
-      enemy.y - enemy.height / 2,
-      enemy.width,
-      enemy.height
-    );
-
-    // HP bar
-    if (enemy.hp < enemy.baseHp) {
-      const barW = enemy.width;
-      const barH = 4;
-      const pct  = Math.max(0, enemy.hp / enemy.baseHp);
-
-      const barX = enemy.x - barW / 2;
-      const barY = enemy.y - enemy.height / 2 - 6;
-
-      ctx.fillStyle = "red";
-      ctx.fillRect(barX, barY, barW, barH);
-
-      ctx.fillStyle = "lime";
-      ctx.fillRect(barX, barY, barW * pct, barH);
-    }
-  }
-
-  drawImageSafely(ctx, image, x, y, w, h) {
-    if (image.complete && image.naturalHeight !== 0) {
-      ctx.drawImage(image, x, y, w, h);
-    } else {
-      console.warn("Image not loaded or invalid:", image);
-    }
-  }
+  // Start
+  game.start();
 }
+
+/**
+ * On load, initialize the game + set up UI events.
+ */
+window.addEventListener("load", async () => {
+  const startGoldInput = document.getElementById("startingGoldInput");
+  const restartGameButton = document.getElementById("restartGameButton");
+
+  // Settings dialog references
+  const settingsDialog = document.getElementById("settingsDialog");
+  const settingsButton = document.getElementById("settingsButton");
+  const settingsDialogClose = document.getElementById("settingsDialogClose");
+
+  // Create segmented HP toggle
+  const hpOptions = [];
+  for (let v = 80; v <= 120; v += 5) {
+    hpOptions.push(v);
+  }
+
+  const enemyHpSegment = document.getElementById("enemyHpSegment");
+  // Clear old if any
+  enemyHpSegment.innerHTML = "";
+  hpOptions.forEach(value => {
+    const btn = document.createElement("button");
+    btn.textContent = value + "%";
+    btn.classList.add("enemyHpOption");
+    // Highlight if default
+    if (value === enemyHpPercent) {
+      btn.style.backgroundColor = "#444";
+    }
+    btn.addEventListener("click", () => {
+      enemyHpPercent = value;
+      // Clear all highlights
+      document.querySelectorAll(".enemyHpOption").forEach(b => {
+        b.style.backgroundColor = "";
+      });
+      // Highlight this one
+      btn.style.backgroundColor = "#444";
+    });
+    enemyHpSegment.appendChild(btn);
+  });
+
+  // Start game with default or user-supplied gold
+  await startGameWithGold(parseInt(startGoldInput.value) || 1000);
+
+  // Restart game event
+  restartGameButton.addEventListener("click", async () => {
+    const desiredGold = parseInt(startGoldInput.value) || 0;
+    await startGameWithGold(desiredGold);
+  });
+
+  // Toggle the settings dialog on gear click
+  settingsButton.addEventListener("click", () => {
+    const style = settingsDialog.style.display;
+    settingsDialog.style.display = (style === "none" || style === "") ? "block" : "none";
+  });
+
+  // Close the settings dialog
+  settingsDialogClose.addEventListener("click", () => {
+    settingsDialog.style.display = "none";
+  });
+});
 EOF
 
-# === Overwrite js/waveManager.js ===
-cat << 'EOF' > js/waveManager.js
-export class WaveManager {
-  constructor(game) {
-    this.game = game;
-
-    this.waveIndex = 0;
-    this.waveActive = false;
-
-    // Start with no forced delay
-    this.timeUntilNextWave = 0;
-
-    this.waves = [];
-  }
-
-  loadWavesFromLevel(levelData) {
-    this.waves = (levelData && levelData.waves) || [];
-    console.log("Waves loaded (reloaded):", this.waves);
-  }
-
-  update(deltaSec) {
-    // If wave not active, see if there's another wave to start
-    if (!this.waveActive && this.waveIndex < this.waves.length) {
-      this.timeUntilNextWave -= deltaSec;
-      if (this.timeUntilNextWave <= 0) {
-        this.startWave(this.waveIndex);
-      }
-    }
-
-    // Check if the current wave is finished
-    if (this.waveActive) {
-      const waveInfo = this.waves[this.waveIndex];
-      const allSpawned = waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
-      if (allSpawned && this.game.enemies.length === 0) {
-        // wave done
-        this.waveActive = false;
-        this.waveIndex++;
-
-        if (this.waveIndex >= this.waves.length) {
-          // That was the last wave
-          // If the game hasn't been lost, show "You win"
-          if (this.game.lives > 0 && this.game.uiManager) {
-            this.game.paused = true;
-            this.game.uiManager.showWinDialog(this.game.lives, this.game.maxLives);
-          }
-        } else {
-          // prepare next wave
-          this.timeUntilNextWave = 0;
-        }
-      }
-    }
-  }
-
-  startWave(index) {
-    this.waveActive = true;
-    const waveInfo = this.waves[index];
-
-    waveInfo.enemyGroups.forEach(group => {
-      group.spawnedCount = 0;
-      const timer = setInterval(() => {
-        if (group.spawnedCount >= group.count) {
-          clearInterval(timer);
-          return;
-        }
-        this.spawnEnemyGroup(group);
-        group.spawnedCount++;
-      }, group.spawnInterval);
-    });
-  }
-
-  spawnEnemyGroup(group) {
-    this.game.enemyManager.spawnEnemy(group.type, group.hpMultiplier);
-  }
-
-  sendWaveEarly() {
-    if (!this.waveActive && this.waveIndex < this.waves.length) {
-      this.startWave(this.waveIndex);
-    }
-  }
-}
-EOF
-
-# === Overwrite js/uiManager.js ===
+# Overwrite js/uiManager.js
 cat << 'EOF' > js/uiManager.js
 export class UIManager {
     constructor(
@@ -753,11 +632,12 @@ export class UIManager {
       this.debugTable.appendChild(tbody);
     }
   
-    getTowerSpotAt(mx, my, detectionDist = 100) {
+    // Increase detectionDist to 200 (was 100)
+    getTowerSpotAt(mx, my, detectionDist = 200) {
       return this.game.towerSpots.find(s => {
         const dx = mx - s.x;
         const dy = my - s.y;
-        return dx * dx + dy * dy < detectionDist;
+        return dx * dx + dy * dy < detectionDist * detectionDist;
       });
     }
   
@@ -870,6 +750,17 @@ export class UIManager {
         maxed.textContent = "Tower is at max level.";
         this.towerSelectPanel.appendChild(maxed);
       }
+
+      // Add Sell Tower button
+      const sellBtn = document.createElement("button");
+      sellBtn.style.display = "block";
+      sellBtn.style.margin = "6px auto 0 auto";
+      sellBtn.textContent = "Sell Tower";
+      sellBtn.addEventListener("click", () => {
+        this.game.towerManager.sellTower(tower);
+        this.hideTowerPanel();
+      });
+      this.towerSelectPanel.appendChild(sellBtn);
   
       // Show, measure, then position
       this.towerSelectPanel.style.display = "block";
@@ -976,13 +867,12 @@ export class UIManager {
       this.winMessageDiv.style.display = "block";
       const starsDiv = this.winMessageDiv.querySelector("#winStars");
 
-      // Decide how many stars to light up
-      // If 18 or more => 3 lit
-      // 10-17 => 2 lit
-      // else => 1 lit
       let starCount = 1;
-      if (finalLives >= 18) starCount = 3;
-      else if (finalLives >= 10) starCount = 2;
+      if (finalLives >= 18) {
+        starCount = 3;
+      } else if (finalLives >= 10) {
+        starCount = 2;
+      }
 
       const starSymbols = [];
       for(let i=1; i<=3; i++){
@@ -994,7 +884,9 @@ export class UIManager {
           starSymbols.push("☆");
         }
       }
-      starsDiv.innerHTML = starSymbols.join(" ");
+      if(starsDiv) {
+        starsDiv.innerHTML = starSymbols.join(" ");
+      }
     }
 
     handleMouseMove(e) {
@@ -1008,5 +900,7 @@ export class UIManager {
 }
 EOF
 
-# === Commit and push ===
-git add . && git commit -m "Implement new UI: lives x/y, wave-based endgame, persistent debug, HP toggle, game info label, stylized end messages" && git push
+# Commit and push changes
+git add .
+git commit -m "Implement requested UI updates: remove wave button, create settings dialog, pause/resume icons, segmented HP toggle, tower selling, style refactoring, and new baseline enemy HP at 50%."
+git push

@@ -4,7 +4,7 @@ Before providing the solution, evaluate if the files in question are getting too
 
 Ignore the python directory.
 
-When delivering the solution, deliver the content of a shell script file that can be executed within the root directory of the project.  The shell script should:
+When delivering the solution, deliver the content of a shell script file that can be executed within the root directory of the project.  The shell script (I'll call my "udpdate script" should:
 1. Overwrite the complete text of any files that are necessary to change to make the updates.  
 
 2. At the end, check in all changes with an appropriate commit message based on the nature of the changes (replace "commet changes" in string with changes description), execute command: 

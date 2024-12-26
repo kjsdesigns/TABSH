@@ -1,4 +1,3 @@
-// test Dec 25 11:56 am
 import { Game } from "./game.js";
 import { level1Data } from "./maps/level1.js";
 import { UIManager } from "./uiManager.js";
@@ -6,7 +5,8 @@ import { loadAllAssets } from "./assetLoader.js";
 
 /**
  * Global parameters the user can set before starting the game:
- * - enemyHpPercent: 80% to 120%, default 100
+ * - enemyHpPercent: now default 100, but we treat that as "50% of old baseline"
+ *   => new globalEnemyHpMultiplier = 0.5 * (enemyHpPercent / 100).
  */
 let enemyHpPercent = 100;
 
@@ -18,35 +18,33 @@ let game = null;
 async function startGameWithGold(startingGold) {
   const canvas = document.getElementById("gameCanvas");
   const pauseBtn = document.getElementById("pauseButton");
-  const sendWaveBtn = document.getElementById("sendWaveButton");
   const enemyStatsDiv = document.getElementById("enemyStats");
   const towerSelectPanel = document.getElementById("towerSelectPanel");
   const debugTableContainer = document.getElementById("debugTableContainer");
-  const debugTable = document.getElementById("debugTable");
   const loseMessage = document.getElementById("loseMessage");
   const winMessage = document.getElementById("winMessage");
 
   // Clear any end-game messages
   loseMessage.style.display = "none";
   winMessage.style.display = "none";
-  winMessage.querySelector("#winStars").innerHTML = "";
+  const starsElem = winMessage.querySelector("#winStars");
+  if (starsElem) starsElem.innerHTML = "";
 
   // Create new Game
   game = new Game(
     canvas,
-    sendWaveBtn,
     enemyStatsDiv,
     towerSelectPanel,
     debugTableContainer
   );
 
   // UI Manager
-  const uiManager = new UIManager(game, enemyStatsDiv, towerSelectPanel, debugTable, loseMessage, winMessage);
+  const uiManager = new UIManager(game, enemyStatsDiv, towerSelectPanel, debugTableContainer, loseMessage, winMessage);
   uiManager.initDebugTable();
   game.uiManager = uiManager;
 
-  // This factor (0.8 -> 1.2) is applied on top of each enemy's normal HP
-  game.globalEnemyHpMultiplier = enemyHpPercent / 100;
+  // This factor is 0.5 * (enemyHpPercent / 100) => new 100% = old 50%
+  game.globalEnemyHpMultiplier = 0.5 * (enemyHpPercent / 100);
 
   // Enemy definitions for loading
   const enemyTypes = [
@@ -73,35 +71,66 @@ async function startGameWithGold(startingGold) {
 
   // Start
   game.start();
-
-  // Update the "current game" label
-  const currentGameLabel = document.getElementById("currentGameLabel");
-  currentGameLabel.textContent = `Current game: Starting gold: ${startingGold}, Enemy HP: ${enemyHpPercent}%`;
 }
 
+/**
+ * On load, initialize the game + set up UI events.
+ */
 window.addEventListener("load", async () => {
   const startGoldInput = document.getElementById("startingGoldInput");
   const restartGameButton = document.getElementById("restartGameButton");
-  const enemyHpButton = document.getElementById("enemyHpButton");
 
-  // 1) Default or user-supplied gold
+  // Settings dialog references
+  const settingsDialog = document.getElementById("settingsDialog");
+  const settingsButton = document.getElementById("settingsButton");
+  const settingsDialogClose = document.getElementById("settingsDialogClose");
+
+  // Create segmented HP toggle
+  const hpOptions = [];
+  for (let v = 80; v <= 120; v += 5) {
+    hpOptions.push(v);
+  }
+
+  const enemyHpSegment = document.getElementById("enemyHpSegment");
+  // Clear old if any
+  enemyHpSegment.innerHTML = "";
+  hpOptions.forEach(value => {
+    const btn = document.createElement("button");
+    btn.textContent = value + "%";
+    btn.classList.add("enemyHpOption");
+    // Highlight if default
+    if (value === enemyHpPercent) {
+      btn.style.backgroundColor = "#444";
+    }
+    btn.addEventListener("click", () => {
+      enemyHpPercent = value;
+      // Clear all highlights
+      document.querySelectorAll(".enemyHpOption").forEach(b => {
+        b.style.backgroundColor = "";
+      });
+      // Highlight this one
+      btn.style.backgroundColor = "#444";
+    });
+    enemyHpSegment.appendChild(btn);
+  });
+
+  // Start game with default or user-supplied gold
   await startGameWithGold(parseInt(startGoldInput.value) || 1000);
 
-  // 2) On "Restart Game", re-init
+  // Restart game event
   restartGameButton.addEventListener("click", async () => {
     const desiredGold = parseInt(startGoldInput.value) || 0;
     await startGameWithGold(desiredGold);
   });
 
-  // 3) Enemy HP toggle (cycles 80->85->90-> ... ->120->80 etc.)
-  const possibleHpValues = [];
-  for(let v=80; v<=120; v+=5) {
-    possibleHpValues.push(v);
-  }
-  let hpIndex = possibleHpValues.indexOf(100);
-  enemyHpButton.addEventListener("click", () => {
-    hpIndex = (hpIndex + 1) % possibleHpValues.length;
-    enemyHpPercent = possibleHpValues[hpIndex];
-    enemyHpButton.textContent = `Enemy HP: ${enemyHpPercent}%`;
+  // Toggle the settings dialog on gear click
+  settingsButton.addEventListener("click", () => {
+    const style = settingsDialog.style.display;
+    settingsDialog.style.display = (style === "none" || style === "") ? "block" : "none";
+  });
+
+  // Close the settings dialog
+  settingsDialogClose.addEventListener("click", () => {
+    settingsDialog.style.display = "none";
   });
 });

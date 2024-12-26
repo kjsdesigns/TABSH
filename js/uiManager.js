@@ -83,11 +83,12 @@ export class UIManager {
       this.debugTable.appendChild(tbody);
     }
   
-    getTowerSpotAt(mx, my, detectionDist = 100) {
+    // Increase detectionDist to 200 (was 100)
+    getTowerSpotAt(mx, my, detectionDist = 200) {
       return this.game.towerSpots.find(s => {
         const dx = mx - s.x;
         const dy = my - s.y;
-        return dx * dx + dy * dy < detectionDist;
+        return dx * dx + dy * dy < detectionDist * detectionDist;
       });
     }
   
@@ -200,6 +201,17 @@ export class UIManager {
         maxed.textContent = "Tower is at max level.";
         this.towerSelectPanel.appendChild(maxed);
       }
+
+      // Add Sell Tower button
+      const sellBtn = document.createElement("button");
+      sellBtn.style.display = "block";
+      sellBtn.style.margin = "6px auto 0 auto";
+      sellBtn.textContent = "Sell Tower";
+      sellBtn.addEventListener("click", () => {
+        this.game.towerManager.sellTower(tower);
+        this.hideTowerPanel();
+      });
+      this.towerSelectPanel.appendChild(sellBtn);
   
       // Show, measure, then position
       this.towerSelectPanel.style.display = "block";
@@ -306,13 +318,12 @@ export class UIManager {
       this.winMessageDiv.style.display = "block";
       const starsDiv = this.winMessageDiv.querySelector("#winStars");
 
-      // Decide how many stars to light up
-      // If 18 or more => 3 lit
-      // 10-17 => 2 lit
-      // else => 1 lit
       let starCount = 1;
-      if (finalLives >= 18) starCount = 3;
-      else if (finalLives >= 10) starCount = 2;
+      if (finalLives >= 18) {
+        starCount = 3;
+      } else if (finalLives >= 10) {
+        starCount = 2;
+      }
 
       const starSymbols = [];
       for(let i=1; i<=3; i++){
@@ -324,7 +335,9 @@ export class UIManager {
           starSymbols.push("☆");
         }
       }
-      starsDiv.innerHTML = starSymbols.join(" ");
+      if(starsDiv) {
+        starsDiv.innerHTML = starSymbols.join(" ");
+      }
     }
 
     handleMouseMove(e) {

@@ -5,7 +5,6 @@ import { WaveManager }  from "./waveManager.js";
 export class Game {
   constructor(
     canvas,
-    sendWaveBtn,
     enemyStatsDiv,
     towerSelectPanel,
     debugTableContainer
@@ -25,7 +24,7 @@ export class Game {
     this.speedIndex = 0;
     this.gameSpeed = this.speedOptions[this.speedIndex];
 
-    // Start paused, label will say "Start game"
+    // Start paused, label will show icon "▶" initially
     this.isFirstStart = true;
     this.paused = true;
 
@@ -38,7 +37,7 @@ export class Game {
     // Enemies
     this.enemies = [];
 
-    // Global enemy HP multiplier (set from outside)
+    // Global enemy HP multiplier (set from outside; includes the 0.5 factor)
     this.globalEnemyHpMultiplier = 1.0;
 
     // Managers
@@ -49,12 +48,21 @@ export class Game {
     // Main loop
     this.lastTime = 0;
 
-    // Debug mode is always on now
+    // Debug mode always on now
     this.debugMode = true;
 
-    // Hook up wave button
-    sendWaveBtn.addEventListener("click", () => {
-      this.waveManager.sendWaveEarly();
+    // Pause/Resume button
+    const pauseBtn = document.getElementById("pauseButton");
+    pauseBtn.innerHTML = "&#9658;"; // "▶"
+    pauseBtn.addEventListener("click", () => {
+      if (this.isFirstStart) {
+        this.isFirstStart = false;
+        this.paused = false;
+        pauseBtn.innerHTML = "&#10073;&#10073;"; // "⏸"
+        return;
+      }
+      this.paused = !this.paused;
+      pauseBtn.innerHTML = this.paused ? "&#9658;" : "&#10073;&#10073;";
     });
 
     // Speed toggle button
@@ -63,20 +71,6 @@ export class Game {
       this.speedIndex = (this.speedIndex + 1) % this.speedOptions.length;
       this.gameSpeed = this.speedOptions[this.speedIndex];
       speedBtn.textContent = `${this.gameSpeed}x`;
-    });
-
-    // Pause / "Start game" button
-    const pauseBtn = document.getElementById("pauseButton");
-    pauseBtn.textContent = "Start game";
-    pauseBtn.addEventListener("click", () => {
-      if (this.isFirstStart) {
-        this.isFirstStart = false;
-        this.paused = false;
-        pauseBtn.textContent = "Pause";
-        return;
-      }
-      this.paused = !this.paused;
-      pauseBtn.textContent = this.paused ? "Resume" : "Pause";
     });
 
     // Canvas click
@@ -94,6 +88,7 @@ export class Game {
       x: pt.x * scaleX,
       y: pt.y * scaleY,
     }));
+    // Tower spots 2x bigger => store them, but we'll draw radius 20
     this.towerSpots = data.towerSpots.map(s => ({
       x: s.x * scaleX,
       y: s.y * scaleY,
@@ -155,15 +150,15 @@ export class Game {
     // Towers
     this.towerManager.drawTowers(this.ctx);
 
-    // Tower spots (debug overlay)
+    // Tower spots (debug overlay) - radius 20
     this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
     this.towerSpots.forEach((spot, i) => {
       this.ctx.beginPath();
-      this.ctx.arc(spot.x, spot.y, 10, 0, Math.PI * 2);
+      this.ctx.arc(spot.x, spot.y, 20, 0, Math.PI * 2);
       this.ctx.fill();
       if (this.debugMode) {
         this.ctx.fillStyle = "white";
-        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 15);
+        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 25);
         this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
       }
     });

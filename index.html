@@ -7,15 +7,17 @@
   </head>
   <body>
     <!-- Wrap the canvas + buttons in a container so they're anchored relative to the canvas -->
-    <div id="gameContainer" style="position: relative; width: 800px; margin: 0 auto;">
+    <div id="gameContainer">
       <!-- Game canvas -->
       <canvas id="gameCanvas" width="800" height="600"></canvas>
       
-      <!-- Container for Speed / Pause & Wave buttons, anchored top-right of the canvas -->
-      <div id="topButtons" style="position: absolute; top: 10px; right: 10px; display: flex; gap: 6px;">
+      <!-- Container for speed, pause, settings buttons (top-right) -->
+      <div id="topButtons">
         <button id="speedToggleButton" class="actionButton">1x</button>
-        <button id="pauseButton" class="actionButton">Start game</button>
-        <button id="sendWaveButton" class="actionButton">Send Next Wave Early</button>
+        <!-- Pause/Resume button with icons -->
+        <button id="pauseButton" class="actionButton">&#9658;</button>
+        <!-- Gear icon for settings -->
+        <button id="settingsButton" class="actionButton">&#9881;</button>
       </div>
     </div>
 
@@ -31,45 +33,33 @@
     <!-- Panel for tower creation/upgrade -->
     <div id="towerSelectPanel"></div>
 
-    <!-- Bottom bar for debug mode, table, gold input, restart, etc. -->
-    <div id="bottomBar" style="width: 800px; margin: 0 auto; margin-top: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
-      <!-- Left side: debug controls -->
-      <div class="debugControls">
-        <!-- Instead of debug toggle, show current game parameters -->
-        <div id="currentGameLabel" style="margin-bottom: 6px; font-weight: bold;">
-          Current game: Starting gold: ???, Enemy HP: ???%
+    <!-- Settings dialog (hidden by default) -->
+    <div id="settingsDialog">
+      <div id="settingsDialogClose">&#10006;</div>
+      <div id="settingsContent">
+        <!-- Starting gold + restart -->
+        <div style="margin-bottom: 8px;">
+          <label for="startingGoldInput">Starting gold</label>
+          <input type="number" id="startingGoldInput" value="1000" />
+          <button id="restartGameButton">Restart Game</button>
         </div>
-        
-        <!-- "Starting gold" + "Restart Game" row -->
-        <label for="startingGoldInput">Starting gold</label>
-        <input
-          type="number"
-          id="startingGoldInput"
-          value="1000"
-        />
-        <button id="restartGameButton">Restart Game</button>
-
-        <!-- Button to cycle enemy HP from 80-120% in increments of 5% (default 100%) -->
-        <div style="margin-top: 6px;">
-          <button id="enemyHpButton">Enemy HP: 100%</button>
+        <!-- Enemy HP segmented toggle -->
+        <div id="enemyHpSegment" style="margin-bottom: 10px;">
+          <!-- Populated by main.js -->
         </div>
-
-        <!-- Debug table container (always on) -->
-        <div id="debugTableContainer" style="display: block; margin-top: 10px;">
+        <!-- Debug table container -->
+        <div id="debugTableContainer" style="margin-top: 10px;">
           <table id="debugTable"></table>
         </div>
       </div>
-
-      <!-- Right side placeholder (empty) -->
-      <div></div>
     </div>
 
-    <!-- End-game messages (no overlay) -->
-    <div id="loseMessage" style="display: none; text-align: center; color: red; font-family: sans-serif; margin-top: 20px;">
+    <!-- End-game messages (overlays) -->
+    <div id="loseMessage">
       <h1 style="font-size: 3em; margin: 0;">You lost</h1>
       <div style="font-size: 6em;">X</div>
     </div>
-    <div id="winMessage" style="display: none; text-align: center; color: gold; font-family: sans-serif; margin-top: 20px;">
+    <div id="winMessage">
       <h1 style="font-size: 3em; margin: 0;">You win!</h1>
       <div id="winStars" style="font-size: 4em; color: gold; margin-top: 10px;"></div>
     </div>
