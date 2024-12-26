@@ -34,10 +34,11 @@ export class UIManager {
   
       const thead = document.createElement("thead");
       const headerRow = document.createElement("tr");
+      // Remove the word "Tower" from each header, and right-align columns 2 & 3
       headerRow.innerHTML = `
-        <th></th>
-        <th>${towerData[0].type.toUpperCase()} Tower</th>
-        <th>${towerData[1].type.toUpperCase()} Tower</th>
+        <th style="min-width: 120px;"></th>
+        <th style="text-align: right;">${towerData[0].type.toUpperCase()}</th>
+        <th style="text-align: right;">${towerData[1].type.toUpperCase()}</th>
       `;
       thead.appendChild(headerRow);
       this.debugTable.appendChild(thead);
@@ -48,8 +49,8 @@ export class UIManager {
       const basePriceRow = document.createElement("tr");
       basePriceRow.innerHTML = `
         <td><strong>Base Price</strong></td>
-        <td>$${towerData[0].basePrice}</td>
-        <td>$${towerData[1].basePrice}</td>
+        <td style="text-align: right;">$${towerData[0].basePrice}</td>
+        <td style="text-align: right;">$${towerData[1].basePrice}</td>
       `;
       tbody.appendChild(basePriceRow);
   
@@ -66,8 +67,8 @@ export class UIManager {
         const rowDamage = document.createElement("tr");
         rowDamage.innerHTML = `
           <td>Level ${lvl} Damage</td>
-          <td>${towerData[0].upgrades[i] ? towerData[0].upgrades[i].damage : "-"}</td>
-          <td>${towerData[1].upgrades[i] ? towerData[1].upgrades[i].damage : "-"}</td>
+          <td style="text-align: right;">${towerData[0].upgrades[i] ? towerData[0].upgrades[i].damage : "-"}</td>
+          <td style="text-align: right;">${towerData[1].upgrades[i] ? towerData[1].upgrades[i].damage : "-"}</td>
         `;
         tbody.appendChild(rowDamage);
   
@@ -76,8 +77,8 @@ export class UIManager {
           const rowCost = document.createElement("tr");
           rowCost.innerHTML = `
             <td>Level ${lvl} Upgrade Cost</td>
-            <td>$${towerData[0].upgrades[i] ? towerData[0].upgrades[i].upgradeCost : "-"}</td>
-            <td>$${towerData[1].upgrades[i] ? towerData[1].upgrades[i].upgradeCost : "-"}</td>
+            <td style="text-align: right;">$${towerData[0].upgrades[i] ? towerData[0].upgrades[i].upgradeCost : "-"}</td>
+            <td style="text-align: right;">$${towerData[1].upgrades[i] ? towerData[1].upgrades[i].upgradeCost : "-"}</td>
           `;
           tbody.appendChild(rowCost);
         }
@@ -205,8 +206,7 @@ export class UIManager {
             const cost = nextDef.upgradeCost;
 
             // If we want the next level's rate to be (base - 0.2) or something:
-            // For consistency, just do tower.fireRate * ??? or something.
-            // We'll just do a simple 0.2 improvement for now:
+            // We'll do a simple 0.2 improvement for now, then round to 1 decimal
             const nextRate = Math.round(Math.max(0.1, tower.fireRate - 0.2) * 10)/10;
 
             const nextStats = document.createElement("div");
