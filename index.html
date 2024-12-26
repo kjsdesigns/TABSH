@@ -33,7 +33,7 @@
     <!-- Panel for tower creation/upgrade -->
     <div id="towerSelectPanel"></div>
 
-    <!-- Settings dialog (hidden by default, now 2-column layout) -->
+    <!-- Settings dialog (hidden by default, 2-column layout) -->
     <div id="settingsDialog">
       <div id="settingsDialogClose">&#10006;</div>
       <h2 id="settingsHeading">Settings</h2>
@@ -41,6 +41,9 @@
         <!-- LEFT column: current game info, enemy HP label & toggles, gold, restart -->
         <div id="settingsLeftColumn">
           <div id="currentGameLabel" class="smallInfoLabel"></div>
+
+          <!-- Add the requested <hr> here -->
+          <hr style="margin: 6px 0;"/>
 
           <!-- "Enemy HP" label + segmented buttons -->
           <div id="enemyHpRow">

@@ -82,7 +82,7 @@ async function startGameWithGold(startingGold) {
   // Start
   game.start();
 
-  // Update current game label
+  // Update current game label ONLY NOW, after actual restart
   const currentGameLabel = document.getElementById("currentGameLabel");
   if (currentGameLabel) {
     currentGameLabel.textContent = `Current game: Starting gold: ${startingGold}, Enemy HP: ${enemyHpPercent}%`;
@@ -113,23 +113,20 @@ window.addEventListener("load", async () => {
       const btn = document.createElement("button");
       btn.textContent = value + "%";
       btn.classList.add("enemyHpOption");
-      // highlight if it's the current
+      // If it's the current selection, highlight
       if (value === enemyHpPercent) {
         btn.style.backgroundColor = "#444";
       }
+      // NOTE: We do NOT update current game or label on change
+      // We only do so upon "Restart Game"
       btn.addEventListener("click", () => {
-        enemyHpPercent = value;
-        // Clear all highlights
+        // Clear old highlights
         document.querySelectorAll(".enemyHpOption").forEach(b => {
           b.style.backgroundColor = "";
         });
-        // Highlight the new selection
+        // Mark new selection
+        enemyHpPercent = value;
         btn.style.backgroundColor = "#444";
-        // Also update currentGameLabel if we want
-        const currentGameLabel = document.getElementById("currentGameLabel");
-        if (currentGameLabel) {
-          currentGameLabel.textContent = `Current game: Starting gold: ${startGoldInput.value}, Enemy HP: ${enemyHpPercent}%`;
-        }
       });
       enemyHpSegment.appendChild(btn);
     });
