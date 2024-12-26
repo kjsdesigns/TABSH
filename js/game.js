@@ -8,7 +8,7 @@ export class Game {
     sendWaveBtn,
     enemyStatsDiv,
     towerSelectPanel,
-    debugToggle,
+    /* Removed debugToggle, */ 
     debugTableContainer
   ) {
     this.canvas = canvas;
@@ -16,8 +16,10 @@ export class Game {
     this.width = canvas.width;
     this.height = canvas.height;
 
+    // Basic stats
     this.gold = 200;
     this.lives = 20;
+    this.maxLives = 20; // For x/y display
 
     // Speed handling
     this.speedOptions = [1, 2, 4, 0.5];
@@ -42,11 +44,15 @@ export class Game {
     this.towerManager = new TowerManager(this);
     this.waveManager  = new WaveManager(this);
 
+    // Additional factor for toggling enemy HP (default 1.0 => 100%)
+    this.enemyHpFactor = 1.0;
+
     // Main loop
     this.lastTime = 0;
 
-    // Debug mode on by default
+    // Debug mode always on
     this.debugMode = true;
+    debugTableContainer.style.display = "block";
 
     // Hook up wave button
     sendWaveBtn.addEventListener("click", () => {
@@ -75,20 +81,11 @@ export class Game {
       pauseBtn.textContent = this.paused ? "Resume" : "Pause";
     });
 
-    // Debug toggle
-    debugToggle.addEventListener("click", () => {
-      this.debugMode = !this.debugMode;
-      debugToggle.textContent = this.debugMode
-        ? "Disable Debug Mode"
-        : "Enable Debug Mode";
-      debugTableContainer.style.display = this.debugMode ? "block" : "none";
-    });
-    debugToggle.textContent = "Disable Debug Mode";
-    debugTableContainer.style.display = "block";
-
-    // Delegate clicks to UI Manager
+    // Canvas click => pass to UIManager
     this.canvas.addEventListener("click", (e) => this.handleCanvasClick(e));
-    // Removed handleMouseMove() from Game — UIManager handles that
+
+    // Reference to overlay
+    this.endOverlay = document.getElementById("endOverlay");
   }
 
   setLevelData(data, bgImg) {
@@ -111,8 +108,6 @@ export class Game {
     // Load waves into WaveManager
     this.waveManager.loadWavesFromLevel(data);
   }
-
-  // Removed setEnemyTypes() — logic is now in enemyManager
 
   start() {
     requestAnimationFrame((ts) => this.gameLoop(ts));
@@ -193,13 +188,16 @@ export class Game {
 
     // HUD
     this.ctx.fillStyle = "white";
+    // Gold
     this.ctx.fillText(`Gold: ${this.gold}`, 10, 50);
+    // Waves (use total wave count)
     this.ctx.fillText(
       `Wave: ${this.waveManager.waveIndex + 1}/${this.waveManager.waves.length}`,
       10,
       70
     );
-    this.ctx.fillText(`Lives: ${this.lives}`, 10, 90);
+    // Lives as x/y
+    this.ctx.fillText(`Lives: ${this.lives}/${this.maxLives}`, 10, 90);
 
     if (
       !this.waveManager.waveActive &&
@@ -207,5 +205,40 @@ export class Game {
     ) {
       this.ctx.fillText("Next wave is ready", 10, 110);
     }
+  }
+
+  showLoseOverlay() {
+    this.paused = true;
+    // Show an overlay with "You Lost" and giant red X
+    this.endOverlay.innerHTML = `
+      <div class="endMessage">You Lost</div>
+      <div class="bigRedX">X</div>
+    `;
+    this.endOverlay.style.display = "flex";
+  }
+
+  showWinOverlay() {
+    this.paused = true;
+    // Evaluate how many stars
+    let starCount = 1;
+    if (this.lives >= 18) {
+      starCount = 3;
+    } else if (this.lives >= 10) {
+      starCount = 2;
+    }
+    // Build star markup
+    const starHTML = [
+      starCount >= 1 ? '<span class="starLit">★</span>' : '<span class="starDim">★</span>',
+      starCount >= 2 ? '<span class="starLit">★</span>' : '<span class="starDim">★</span>',
+      starCount >= 3 ? '<span class="starLit">★</span>' : '<span class="starDim">★</span>'
+    ].join("");
+
+    this.endOverlay.innerHTML = `
+      <div class="endMessage">You Win</div>
+      <div class="starContainer">
+        ${starHTML}
+      </div>
+    `;
+    this.endOverlay.style.display = "flex";
   }
 }

@@ -2,7 +2,15 @@ I'm working on a tower defense game.  I'll be sending you complete files that ma
 
 Before providing the solution, evaluate if the files in question are getting too large and should be split up or otherwise refactored.  Any time there's any evidence of doing the same thing in 2 places identify that.  Summarize any file organization or modularity changes to me and ask me if I want to proceed with them before giving me the solution.
 
-When delivering the solution, always provide the complete new version of only the files that require changes.
+Ignore the python directory.
+
+When delivering the solution, deliver the content of a shell script file that can be executed within the root directory of the project.  The shell script should:
+1. Overwrite the complete text of any files that are necessary to change to make the updates.  
+
+2. At the end, check in all changes with an appropriate commit message based on the nature of the changes (replace "commet changes" in string with changes description), execute command: 
+git add . && git commit -m "Commit message" && git push
+
+3. I will copy the outputted shell script, and paste and run it on the root directory to implement the changes.
 
 === Local hosting ===
 

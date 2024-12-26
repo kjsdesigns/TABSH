@@ -2,8 +2,7 @@ export class EnemyManager {
   constructor(game) {
     this.game = game;
 
-    // Internal data: "raw" stats before HP multipliers or random speed factor.
-    // We'll apply the 20% global HP reduction on spawn, plus any wave multiplier.
+    // Internal data: "raw" stats
     this.enemyBaseData = {
       drone: {
         baseHp: 30,
@@ -31,26 +30,18 @@ export class EnemyManager {
     this.loadedEnemyAssets = [];
   }
 
-  /**
-   * Store the loadedEnemies array from assetLoader.js
-   * Each element has { name, image, width, height, ... }.
-   */
   setLoadedEnemyAssets(loadedEnemies) {
     this.loadedEnemyAssets = loadedEnemies;
   }
 
-  /**
-   * Spawn a single enemy of the given type with a wave-based HP multiplier.
-   * Applies the 20% HP reduction, random speed factor, etc.
-   */
   spawnEnemy(type, hpMultiplier = 1) {
     const baseData = this.enemyBaseData[type] || this.enemyBaseData["drone"];
     // Find matching image asset (fallback to index[0] if missing)
     const asset = this.loadedEnemyAssets.find(e => e.name === type)
       || this.loadedEnemyAssets[0];
 
-    // 20% global HP reduction, then apply wave multiplier
-    const finalHp = baseData.baseHp * 0.8 * hpMultiplier;
+    // 20% global HP reduction, wave multiplier, AND game.enemyHpFactor
+    const finalHp = baseData.baseHp * 0.8 * hpMultiplier * this.game.enemyHpFactor;
 
     // Random speed ~ ±20% around baseSpeed
     const speedFactor = 0.8 + Math.random() * 0.4;
@@ -64,7 +55,6 @@ export class EnemyManager {
     }
     const firstWP = path[0];
 
-    // Create enemy object
     const enemy = {
       name: type,
       image: asset.image,
@@ -80,7 +70,6 @@ export class EnemyManager {
       dead: false,
     };
 
-    // Add to game.enemies
     this.game.enemies.push(enemy);
   }
 
@@ -99,17 +88,16 @@ export class EnemyManager {
       }
     });
 
-    // Remove dead enemies or enemies that reach the right edge
+    // Remove dead enemies or enemies that exit
     this.game.enemies = this.game.enemies.filter(e => {
       if (e.dead) return false;
 
-      // If the enemy is off-screen, lose a life
+      // If the enemy is off-screen to the right
       if (e.x > this.game.width + e.width) {
         this.game.lives -= 1;
         if (this.game.lives <= 0) {
-          this.game.lives = 0; 
-          this.game.paused = true;
-          alert("Game Over");
+          this.game.lives = 0;
+          this.game.showLoseOverlay();
         }
         return false;
       }
@@ -131,7 +119,7 @@ export class EnemyManager {
     const ty = nextWP.y;
     const dx = tx - enemy.x;
     const dy = ty - enemy.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    const dist = Math.sqrt(dx*dx + dy*dy);
     const step = enemy.speed * deltaSec;
 
     if (dist <= step) {

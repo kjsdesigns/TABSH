@@ -30,11 +30,17 @@ export class WaveManager {
       const waveInfo = this.waves[this.waveIndex];
       const allSpawned = waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
       if (allSpawned && this.game.enemies.length === 0) {
-        // wave done
+        // Wave done
         this.waveActive = false;
         this.waveIndex++;
         // no forced delay for next wave
         this.timeUntilNextWave = 0;
+
+        // If that was the last wave, and it's done, show "You Win"
+        if (this.waveIndex >= this.waves.length) {
+          // Completed all waves
+          this.game.showWinOverlay();
+        }
       }
     }
   }

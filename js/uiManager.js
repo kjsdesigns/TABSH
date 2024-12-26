@@ -134,11 +134,6 @@ export class UIManager {
       }
     }
   
-    /**
-     * Show panel for an existing tower so that:
-     *   - the bottom center of the panel is just above the tower.
-     *   - the "Upgrade" button is centered.
-     */
     showExistingTowerPanel(tower, rect) {
       this.towerSelectPanel.innerHTML = "";
       this.towerSelectPanel.style.background = "none"; // remove overall dark background
@@ -202,22 +197,12 @@ export class UIManager {
       const panelW = this.towerSelectPanel.offsetWidth;
       const panelH = this.towerSelectPanel.offsetHeight;
   
-      // tower.x, tower.y => canvas coords for the tower center
       const towerScreenX = tower.x + rect.left;
       const towerScreenY = tower.y + rect.top;
-  
-      // Place so that the bottom center of the panel is at tower center
       this.towerSelectPanel.style.left = (towerScreenX - panelW / 2) + "px";
       this.towerSelectPanel.style.top  = (towerScreenY - panelH) + "px";
     }
   
-    /**
-     * Show tower creation panel with narrower columns, 
-     * price on the button (instead of in the heading), 
-     * separate lines for DMG and Rate, 
-     * reduced gap, 
-     * and no big bounding box behind everything.
-     */
     showNewTowerPanel(spot, rect) {
       this.towerSelectPanel.innerHTML = "";
       // remove the large dark background from the panel itself
@@ -226,35 +211,30 @@ export class UIManager {
       this.towerSelectPanel.style.borderRadius = "0";
       this.towerSelectPanel.style.textAlign = "center";
   
-      // We'll create a row with each tower type side by side
       const container = document.createElement("div");
       container.style.display = "flex";
-      container.style.gap = "10px";  // reduce gap by 50% from 20px to 10px
+      container.style.gap = "10px";
       container.style.justifyContent = "center";
       container.style.alignItems = "flex-start";
   
       const towerDefs = this.game.towerManager.getTowerData();
       towerDefs.forEach(def => {
-        // For each tower type, create a sub-div with its own dark background
         const towerDiv = document.createElement("div");
         towerDiv.style.background = "rgba(0,0,0,0.7)";
         towerDiv.style.border = "1px solid #999";
         towerDiv.style.padding = "4px";
         towerDiv.style.borderRadius = "4px";
-        towerDiv.style.minWidth = "80px"; // narrower columns
+        towerDiv.style.minWidth = "80px";
   
-        // Name only
         const nameEl = document.createElement("div");
         nameEl.style.fontWeight = "bold";
         nameEl.textContent = def.type.toUpperCase();
         towerDiv.appendChild(nameEl);
   
-        // DMG and Rate on separate lines
         const statsEl = document.createElement("div");
         statsEl.innerHTML = `DMG: ${def.upgrades[0].damage}<br>Rate: ${def.fireRate}s`;
         towerDiv.appendChild(statsEl);
   
-        // Use price on the button text
         const buildBtn = document.createElement("button");
         buildBtn.textContent = `$${def.basePrice}`;
         buildBtn.addEventListener("click", () => {
@@ -276,15 +256,12 @@ export class UIManager {
   
       this.towerSelectPanel.appendChild(container);
   
-      // Show, measure, then position
       this.towerSelectPanel.style.display = "block";
       const panelW = this.towerSelectPanel.offsetWidth;
       const panelH = this.towerSelectPanel.offsetHeight;
   
       const spotScreenX = spot.x + rect.left;
       const spotScreenY = spot.y + rect.top;
-  
-      // Place so that the bottom center of the panel is at spot center
       this.towerSelectPanel.style.left = (spotScreenX - panelW / 2) + "px";
       this.towerSelectPanel.style.top  = (spotScreenY - panelH) + "px";
     }
@@ -295,7 +272,8 @@ export class UIManager {
   
     showEnemyStats(enemy) {
       this.enemyStatsDiv.style.display = "block";
-      this.enemyImage.src          = enemy.src;
+      // Updated line below:
+      this.enemyImage.src          = enemy.image.src;  // Use enemy.image.src instead of enemy.src
       this.enemyNameEl.textContent = enemy.name;
       this.enemyHpEl.textContent   = `${enemy.hp}/${enemy.baseHp}`;
       this.enemySpeedEl.textContent= enemy.speed.toFixed(1);
@@ -314,4 +292,4 @@ export class UIManager {
       const entity = this.getEntityUnderMouse(mx, my);
       this.game.canvas.style.cursor = entity ? "pointer" : "default";
     }
-  }
+}
