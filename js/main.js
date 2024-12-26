@@ -5,15 +5,6 @@ import { UIManager } from "./uiManager.js";
 import { loadAllAssets } from "./assetLoader.js";
 import { initMainScreen, unlockStars } from "./mainScreen.js";
 
-/**
- * main.js
- *
- * Adjusted to:
- * 1) Initialize the main screen.
- * 2) Check localStorage for chosen level & hero whenever we actually start a game.
- * 3) When a level finishes, use unlockStars() from mainScreen.js to store star rating.
- */
-
 let enemyHpPercent = 100;
 let game = null;
 let lastStartingGold = 1000;
@@ -105,7 +96,6 @@ async function startGameWithGold(startingGold) {
 
   // If we have a heroType, set up a hero
   if (currentHeroType) {
-    // Let the HeroManager be created in game
     game.createHero(currentHeroType);
   }
 
@@ -123,7 +113,7 @@ async function startGameWithGold(startingGold) {
 window.addEventListener("load", async () => {
   initMainScreen();
 
-  // Hook up "Restart game" from settings
+  // "Restart game" from settings
   const restartGameButton = document.getElementById("restartGameButton");
   if (restartGameButton) {
     restartGameButton.addEventListener("click", async () => {
@@ -133,11 +123,16 @@ window.addEventListener("load", async () => {
     });
   }
 
-  // "Back to main" button
+  // "Back to main" button in settings
   const backToMainButton = document.getElementById("backToMainButton");
   if (backToMainButton) {
     backToMainButton.addEventListener("click", () => {
       // Hide game, show main
+      const loseMessage = document.getElementById("loseMessage");
+      const winMessage = document.getElementById("winMessage");
+      if (loseMessage) loseMessage.style.display = "none";
+      if (winMessage) winMessage.style.display = "none";
+
       const mainScreen = document.getElementById("mainScreen");
       const gameContainer = document.getElementById("gameContainer");
       if (mainScreen && gameContainer) {
@@ -206,6 +201,22 @@ window.addEventListener("load", async () => {
       settingsDialog.style.display = "block";
     });
   }
+
+  // "Back to main" in lose dialog
+  const loseMainBtn = document.getElementById("loseMainBtn");
+  if (loseMainBtn) {
+    loseMainBtn.addEventListener("click", () => {
+      document.getElementById("loseMessage").style.display = "none";
+      const mainScreen = document.getElementById("mainScreen");
+      const gameContainer = document.getElementById("gameContainer");
+      if (mainScreen && gameContainer) {
+        gameContainer.style.display = "none";
+        mainScreen.style.display = "block";
+      }
+    });
+  }
+
+  // Win logic
   const winRestartBtn = document.getElementById("winRestartBtn");
   if (winRestartBtn) {
     winRestartBtn.addEventListener("click", async () => {
@@ -223,11 +234,23 @@ window.addEventListener("load", async () => {
     });
   }
 
+  // "Back to main" in win dialog
+  const winMainBtn = document.getElementById("winMainBtn");
+  if (winMainBtn) {
+    winMainBtn.addEventListener("click", () => {
+      document.getElementById("winMessage").style.display = "none";
+      const mainScreen = document.getElementById("mainScreen");
+      const gameContainer = document.getElementById("gameContainer");
+      if (mainScreen && gameContainer) {
+        gameContainer.style.display = "none";
+        mainScreen.style.display = "block";
+      }
+    });
+  }
 });
  
 // We'll expose a function for awarding stars:
 export function awardStars(starCount) {
-  // starCount can be 1,2,3
   if (!currentLevelName) return;
   unlockStars(currentLevelName, starCount);
 }

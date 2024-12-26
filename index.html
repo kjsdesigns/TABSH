@@ -187,7 +187,7 @@
           <button id="restartGameButton" class="actionButton" style="margin-top: 10px;">
             Restart Game
           </button>
-          <!-- NEW: back to main screen -->
+          <!-- existing back to main -->
           <button id="backToMainButton" class="actionButton" style="margin-top: 10px;">
             Back to Main
           </button>
@@ -208,7 +208,9 @@
       <div style="font-size: 6em;">X</div>
       <div style="margin-top: 10px;">
         <button id="loseRestartBtn" class="actionButton" style="margin-right: 10px;">Restart</button>
-        <button id="loseSettingsBtn" class="actionButton">Settings</button>
+        <button id="loseSettingsBtn" class="actionButton" style="margin-right: 10px;">Settings</button>
+        <!-- New: back to main -->
+        <button id="loseMainBtn" class="actionButton">Back to main</button>
       </div>
     </div>
 
@@ -218,11 +220,13 @@
       <div id="winStars" style="font-size: 4em; color: gold; margin-top: 10px;"></div>
       <div style="margin-top: 10px;">
         <button id="winRestartBtn" class="actionButton" style="margin-right: 10px;">Restart</button>
-        <button id="winSettingsBtn" class="actionButton">Settings</button>
+        <button id="winSettingsBtn" class="actionButton" style="margin-right: 10px;">Settings</button>
+        <!-- New: back to main -->
+        <button id="winMainBtn" class="actionButton">Back to main</button>
       </div>
     </div>
 
-    <!-- Original main.js replaced with the new approach below -->
+    <!-- Scripts -->
     <script type="module" src="./js/mainScreen.js"></script>
     <script type="module" src="./js/main.js"></script>
   </body>
