@@ -30,43 +30,38 @@ export class Game {
     this.backgroundImg = null;
     this.path = [];
     this.towerSpots = [];
-
     this.enemies = [];
+
     this.globalEnemyHpMultiplier = 1.0;
 
     this.enemyManager = new EnemyManager(this);
     this.towerManager = new TowerManager(this);
     this.waveManager  = new WaveManager(this);
-
-    // hero manager is created dynamically if hero is chosen
-    this.heroManager = null;
+    this.heroManager  = new HeroManager(this);
 
     this.lastTime = 0;
     this.debugMode = true;
 
-    // Pause/Resume
     const pauseBtn = document.getElementById("pauseButton");
-    pauseBtn.innerHTML = "&#9658;";
+    pauseBtn.innerHTML = "&#9658;"; // "▶"
     pauseBtn.addEventListener("click", () => {
       if (this.isFirstStart) {
         this.isFirstStart = false;
         this.paused = false;
-        pauseBtn.innerHTML = "&#10073;&#10073;";
+        pauseBtn.innerHTML = "&#10073;&#10073;"; 
         return;
       }
       this.paused = !this.paused;
       pauseBtn.innerHTML = this.paused ? "&#9658;" : "&#10073;&#10073;";
     });
 
-    // Speed toggle
     const speedBtn = document.getElementById("speedToggleButton");
     speedBtn.addEventListener("click", () => {
       this.speedIndex = (this.speedIndex + 1) % this.speedOptions.length;
       this.gameSpeed = this.speedOptions[this.speedIndex];
-      speedBtn.textContent = this.gameSpeed + "x";
+      speedBtn.textContent = `${this.gameSpeed}x`;
     });
 
-    // canvas click
     this.canvas.addEventListener("click", (e) => this.handleCanvasClick(e));
   }
 
@@ -81,18 +76,12 @@ export class Game {
       x: pt.x * scaleX,
       y: pt.y * scaleY,
     }));
-
     this.towerSpots = data.towerSpots.map(s => ({
       x: s.x * scaleX,
       y: s.y * scaleY,
       occupied: false,
     }));
-
     this.waveManager.loadWavesFromLevel(data);
-  }
-
-  createHero(heroType) {
-    this.heroManager = new HeroManager(this, heroType);
   }
 
   start() {
@@ -102,7 +91,6 @@ export class Game {
   gameLoop(timestamp) {
     const delta = (timestamp - this.lastTime) || 0;
     this.lastTime = timestamp;
-
     let deltaSec = delta / 1000;
     deltaSec *= this.gameSpeed;
 
@@ -110,10 +98,12 @@ export class Game {
       this.waveManager.update(deltaSec);
       this.enemyManager.update(deltaSec);
       this.towerManager.update(deltaSec);
-      if (this.heroManager) {
-        this.heroManager.update(deltaSec);
-      }
+      this.heroManager.update(deltaSec);
+      // also handle collisions where enemies can fight with heroes
+      // a simple approach is to do it in heroManager or enemyManager
+      // but if we want to do “both sides deal damage,” we can do it there
     }
+
     this.draw();
     requestAnimationFrame((ts) => this.gameLoop(ts));
   }
@@ -123,7 +113,19 @@ export class Game {
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     if (this.uiManager && this.uiManager.handleCanvasClick) {
+      // The UI manager is responsible for deciding if we clicked a hero, tower, enemy, spot, etc.
       this.uiManager.handleCanvasClick(mx, my, rect);
+
+      // Also check if we’re setting a new rally for a selected tower (barracks)
+      if (this.uiManager.selectedTower && this.uiManager.selectedTower.type === "barracks") {
+        // We assume user wanted to set rally here
+        const tower = this.uiManager.selectedTower;
+        if (tower.unitGroup) {
+          tower.unitGroup.setRallyPoint(mx, my);
+        }
+        // done
+        this.uiManager.selectedTower = null;
+      }
     }
   }
 
@@ -142,54 +144,45 @@ export class Game {
     // Projectiles
     this.towerManager.drawProjectiles(this.ctx);
 
-    // Towers
+    // Towers (and their units)
     this.towerManager.drawTowers(this.ctx);
 
-    // Hero
-    if (this.heroManager) {
-      this.heroManager.draw(this.ctx);
-    }
-
-    // Tower spots (debug)
-    this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
-    this.towerSpots.forEach((spot, i) => {
-      this.ctx.beginPath();
-      this.ctx.arc(spot.x, spot.y, 20, 0, Math.PI * 2);
-      this.ctx.fill();
-      if (this.debugMode) {
-        this.ctx.fillStyle = "white";
-        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 25);
-        this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
-      }
-    });
+    // Heroes
+    this.heroManager.draw(this.ctx);
 
     // Path debug
-    this.ctx.fillStyle = "yellow";
-    this.path.forEach((wp, i) => {
-      this.ctx.beginPath();
-      this.ctx.arc(wp.x, wp.y, 5, 0, Math.PI * 2);
-      this.ctx.fill();
-      if (this.debugMode) {
+    if (this.debugMode) {
+      this.ctx.fillStyle = "yellow";
+      this.path.forEach((wp, i) => {
+        this.ctx.beginPath();
+        this.ctx.arc(wp.x, wp.y, 5, 0, Math.PI * 2);
+        this.ctx.fill();
         this.ctx.fillStyle = "white";
         this.ctx.fillText(`P${i}`, wp.x - 10, wp.y - 10);
         this.ctx.fillStyle = "yellow";
-      }
-    });
+      });
+    }
+
+    // Tower spots debug
+    if (this.debugMode) {
+      this.ctx.fillStyle = "rgba(0,255,0,0.5)";
+      this.towerSpots.forEach((spot, i) => {
+        this.ctx.beginPath();
+        this.ctx.arc(spot.x, spot.y, 20, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.fillStyle = "white";
+        this.ctx.fillText(`T${i}`, spot.x-10, spot.y-25);
+        this.ctx.fillStyle = "rgba(0,255,0,0.5)";
+      });
+    }
 
     // HUD
     this.ctx.fillStyle = "white";
     this.ctx.fillText(`Gold: ${this.gold}`, 10, 50);
-    this.ctx.fillText(
-      `Wave: ${this.waveManager.waveIndex + 1}/${this.waveManager.waves.length}`,
-      10,
-      70
-    );
+    this.ctx.fillText(`Wave: ${this.waveManager.waveIndex + 1}/${this.waveManager.waves.length}`, 10, 70);
     this.ctx.fillText(`Lives: ${this.lives}/${this.maxLives}`, 10, 90);
 
-    if (
-      !this.waveManager.waveActive &&
-      this.waveManager.waveIndex < this.waveManager.waves.length
-    ) {
+    if (!this.waveManager.waveActive && this.waveManager.waveIndex < this.waveManager.waves.length) {
       this.ctx.fillText("Next wave is ready", 10, 110);
     }
   }

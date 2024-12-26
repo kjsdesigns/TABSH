@@ -1,53 +1,20 @@
 import { Game } from "./game.js";
 import { level1Data } from "./maps/level1.js";
-import { level2Data } from "./maps/level2.js";
 import { UIManager } from "./uiManager.js";
 import { loadAllAssets } from "./assetLoader.js";
-import { initMainScreen, unlockStars } from "./mainScreen.js";
+
+// We now have heroManager in game.js, but we also import everything in game
 
 let enemyHpPercent = 100;
 let game = null;
 let lastStartingGold = 1000;
-let currentLevelData = null;
-let currentLevelName = null; // "level1" or "level2"
-let currentHeroType = null;  // "melee" or "archer" or null
-
-// Called by mainScreen after the user chooses a level
-window.startGameFromMainScreen = async function() {
-  const chosenLevel = localStorage.getItem("kr_chosenLevel") || "level1";
-  currentLevelName = chosenLevel;
-
-  // Check hero
-  const slotIndex = localStorage.getItem("kr_activeSlot") || "1";
-  const slotDataRaw = localStorage.getItem("kr_slot" + slotIndex);
-  let slotData = null;
-  try {
-    slotData = JSON.parse(slotDataRaw);
-  } catch(e) {
-    slotData = { selectedHero: null };
-  }
-  currentHeroType = slotData.selectedHero || null;
-
-  if (chosenLevel === "level2") {
-    currentLevelData = level2Data;
-  } else {
-    currentLevelData = level1Data;
-  }
-
-  // Start the game
-  const startGoldInput = document.getElementById("startingGoldInput");
-  const desiredGold = parseInt(startGoldInput.value) || 1000;
-  await startGameWithGold(desiredGold);
-};
 
 async function startGameWithGold(startingGold) {
   lastStartingGold = startingGold;
-
-  // Hide lose/win
   const loseMessage = document.getElementById("loseMessage");
-  const winMessage = document.getElementById("winMessage");
+  const winMessage  = document.getElementById("winMessage");
   if (loseMessage) loseMessage.style.display = "none";
-  if (winMessage) winMessage.style.display = "none";
+  if (winMessage)  winMessage.style.display = "none";
 
   const canvas = document.getElementById("gameCanvas");
   const enemyStatsDiv = document.getElementById("enemyStats");
@@ -55,7 +22,6 @@ async function startGameWithGold(startingGold) {
   const debugTableContainer = document.getElementById("debugTableContainer");
 
   game = new Game(canvas, enemyStatsDiv, towerSelectPanel, debugTableContainer);
-
   game.lives = 20;
   game.maxLives = 20;
   game.gameOver = false;
@@ -64,7 +30,6 @@ async function startGameWithGold(startingGold) {
     game.waveManager.waveActive = false;
   }
 
-  // UI Manager
   const uiManager = new UIManager(
     game,
     enemyStatsDiv,
@@ -76,96 +41,69 @@ async function startGameWithGold(startingGold) {
   uiManager.initDebugTable();
   game.uiManager = uiManager;
 
-  // Enemy HP multiplier
   game.globalEnemyHpMultiplier = enemyHpPercent / 100;
 
-  // Load images / assets
   const enemyTypes = [
     { name: "drone",         src: "assets/enemies/drone.png" },
     { name: "leaf_blower",   src: "assets/enemies/leaf_blower.png" },
     { name: "trench_digger", src: "assets/enemies/trench_digger.png" },
     { name: "trench_walker", src: "assets/enemies/trench_walker.png" },
   ];
-
   const { loadedEnemies, loadedBackground } = await loadAllAssets(
     enemyTypes,
-    currentLevelData.background
+    level1Data.background
   );
   game.enemyManager.setLoadedEnemyAssets(loadedEnemies);
-  game.setLevelData(currentLevelData, loadedBackground);
-
-  // If we have a heroType, set up a hero
-  if (currentHeroType) {
-    game.createHero(currentHeroType);
-  }
-
+  game.setLevelData(level1Data, loadedBackground);
   game.gold = startingGold;
-  game.start();
 
-  // Update label
+  // Add one melee hero and one archer hero for demonstration
+  // (You can expand to choose in a hero select screen, etc.)
+  game.heroManager.addHero({
+    name: "Knight Hero",
+    x: 100,
+    y: 100,
+    maxHp: 200,
+    damage: 15,
+    isMelee: true,
+    range: 20,        // Must be close
+    speed: 80,
+    attackInterval: 1.0
+  });
+  game.heroManager.addHero({
+    name: "Archer Hero",
+    x: 150,
+    y: 150,
+    maxHp: 120,
+    damage: 10,
+    isMelee: false,   // Not fully implemented ranged logic in this sample
+    range: 40,        // a bit larger range if we wanted to do a real ranged system
+    speed: 90,
+    attackInterval: 1.2
+  });
+
+  game.start();
   const currentGameLabel = document.getElementById("currentGameLabel");
   if (currentGameLabel) {
-    currentGameLabel.innerHTML = `Current game:<br>Level: ${currentLevelName}, Starting gold: ${startingGold}, Enemy HP: ${enemyHpPercent}%`;
+    currentGameLabel.innerHTML = `Current game:<br>Starting gold: ${startingGold}, Enemy HP: ${enemyHpPercent}%`;
   }
 }
 
-// On load, just init the main screen
 window.addEventListener("load", async () => {
-  initMainScreen();
-
-  // "Restart game" from settings
+  const startGoldInput = document.getElementById("startingGoldInput");
   const restartGameButton = document.getElementById("restartGameButton");
-  if (restartGameButton) {
-    restartGameButton.addEventListener("click", async () => {
-      const goldInput = document.getElementById("startingGoldInput");
-      const gold = parseInt(goldInput.value) || 1000;
-      await startGameWithGold(gold);
-    });
-  }
 
-  // "Back to main" button in settings
-  const backToMainButton = document.getElementById("backToMainButton");
-  if (backToMainButton) {
-    backToMainButton.addEventListener("click", () => {
-      // Hide game, show main
-      const loseMessage = document.getElementById("loseMessage");
-      const winMessage = document.getElementById("winMessage");
-      if (loseMessage) loseMessage.style.display = "none";
-      if (winMessage) winMessage.style.display = "none";
+  const settingsDialog       = document.getElementById("settingsDialog");
+  const settingsButton       = document.getElementById("settingsButton");
+  const settingsDialogClose  = document.getElementById("settingsDialogClose");
 
-      const mainScreen = document.getElementById("mainScreen");
-      const gameContainer = document.getElementById("gameContainer");
-      if (mainScreen && gameContainer) {
-        gameContainer.style.display = "none";
-        mainScreen.style.display = "block";
-      }
-    });
+  const hpOptions = [];
+  for (let v = 80; v <= 120; v += 5) {
+    hpOptions.push(v);
   }
-
-  // Settings dialog references
-  const settingsDialog = document.getElementById("settingsDialog");
-  const settingsButton = document.getElementById("settingsButton");
-  const settingsDialogClose = document.getElementById("settingsDialogClose");
-  if (settingsButton) {
-    settingsButton.addEventListener("click", () => {
-      const style = settingsDialog.style.display;
-      settingsDialog.style.display = (style === "none" || style === "") ? "block" : "none";
-    });
-  }
-  if (settingsDialogClose) {
-    settingsDialogClose.addEventListener("click", () => {
-      settingsDialog.style.display = "none";
-    });
-  }
-
-  // Enemy HP segmented options
   const enemyHpSegment = document.getElementById("enemyHpSegment");
   if (enemyHpSegment) {
     enemyHpSegment.innerHTML = "";
-    const hpOptions = [];
-    for (let v = 80; v <= 120; v += 5) {
-      hpOptions.push(v);
-    }
     hpOptions.forEach(value => {
       const btn = document.createElement("button");
       btn.textContent = value + "%";
@@ -184,16 +122,31 @@ window.addEventListener("load", async () => {
     });
   }
 
-  // If user restarts from lose/win
+  await startGameWithGold(parseInt(startGoldInput.value) || 1000);
+
+  restartGameButton.addEventListener("click", async () => {
+    const desiredGold = parseInt(startGoldInput.value) || 0;
+    await startGameWithGold(desiredGold);
+  });
+
+  settingsButton.addEventListener("click", () => {
+    const style = settingsDialog.style.display;
+    settingsDialog.style.display = (style === "none" || style === "") ? "block" : "none";
+  });
+  settingsDialogClose.addEventListener("click", () => {
+    settingsDialog.style.display = "none";
+  });
+
   const loseRestartBtn = document.getElementById("loseRestartBtn");
+  const loseSettingsBtn = document.getElementById("loseSettingsBtn");
+  const winRestartBtn  = document.getElementById("winRestartBtn");
+  const winSettingsBtn = document.getElementById("winSettingsBtn");
   if (loseRestartBtn) {
     loseRestartBtn.addEventListener("click", async () => {
       document.getElementById("loseMessage").style.display = "none";
-      const goldInput = document.getElementById("startingGoldInput");
-      await startGameWithGold(parseInt(goldInput.value) || 1000);
+      await startGameWithGold(lastStartingGold);
     });
   }
-  const loseSettingsBtn = document.getElementById("loseSettingsBtn");
   if (loseSettingsBtn) {
     loseSettingsBtn.addEventListener("click", () => {
       settingsDialog.style.zIndex = "10001";
@@ -201,31 +154,12 @@ window.addEventListener("load", async () => {
       settingsDialog.style.display = "block";
     });
   }
-
-  // "Back to main" in lose dialog
-  const loseMainBtn = document.getElementById("loseMainBtn");
-  if (loseMainBtn) {
-    loseMainBtn.addEventListener("click", () => {
-      document.getElementById("loseMessage").style.display = "none";
-      const mainScreen = document.getElementById("mainScreen");
-      const gameContainer = document.getElementById("gameContainer");
-      if (mainScreen && gameContainer) {
-        gameContainer.style.display = "none";
-        mainScreen.style.display = "block";
-      }
-    });
-  }
-
-  // Win logic
-  const winRestartBtn = document.getElementById("winRestartBtn");
   if (winRestartBtn) {
     winRestartBtn.addEventListener("click", async () => {
       document.getElementById("winMessage").style.display = "none";
-      const goldInput = document.getElementById("startingGoldInput");
-      await startGameWithGold(parseInt(goldInput.value) || 1000);
+      await startGameWithGold(lastStartingGold);
     });
   }
-  const winSettingsBtn = document.getElementById("winSettingsBtn");
   if (winSettingsBtn) {
     winSettingsBtn.addEventListener("click", () => {
       settingsDialog.style.zIndex = "10001";
@@ -234,23 +168,10 @@ window.addEventListener("load", async () => {
     });
   }
 
-  // "Back to main" in win dialog
-  const winMainBtn = document.getElementById("winMainBtn");
-  if (winMainBtn) {
-    winMainBtn.addEventListener("click", () => {
-      document.getElementById("winMessage").style.display = "none";
-      const mainScreen = document.getElementById("mainScreen");
-      const gameContainer = document.getElementById("gameContainer");
-      if (mainScreen && gameContainer) {
-        gameContainer.style.display = "none";
-        mainScreen.style.display = "block";
-      }
-    });
-  }
+  restartGameButton.addEventListener("click", () => {
+    const loseMessage = document.getElementById("loseMessage");
+    const winMessage = document.getElementById("winMessage");
+    if (loseMessage) loseMessage.style.display = "none";
+    if (winMessage)  winMessage.style.display = "none";
+  });
 });
- 
-// We'll expose a function for awarding stars:
-export function awardStars(starCount) {
-  if (!currentLevelName) return;
-  unlockStars(currentLevelName, starCount);
-}

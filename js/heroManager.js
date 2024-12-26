@@ -1,113 +1,198 @@
 /**
  * heroManager.js
  * 
- * Basic approach for a single hero:
- * - Hero is placed near path[0]
- * - Moves toward nearest enemy within range, or stands idle if none
- * - Attack is a placeholder
+ * Manages one or more Heroes (melee or archer).
+ * Each hero has:
+ *  - HP
+ *  - Attack stats (for melee or ranged; simplified here)
+ *  - Engagement logic if it's a melee hero
+ *  - Manual movement commands
  */
+import { MeleeFighter } from "./unitManager.js";
 
-export class HeroManager {
-  constructor(game, heroType) {
-    this.game = game;
-    this.heroType = heroType || "melee";
-    // Basic hero stats, vary by type
-    if (this.heroType === "archer") {
-      this.range = 150;
-      this.damage = 10;
-      this.speed = 100; // moves faster
-    } else {
-      // melee
-      this.range = 50;
-      this.damage = 15;
-      this.speed = 70;
-    }
-    this.x = 0;
-    this.y = 0;
-    this.w = 24;
-    this.h = 24;
+export class Hero {
+  constructor(config) {
+    // Common stats
+    this.name = config.name || "Hero";
+    this.x = config.x || 400;
+    this.y = config.y || 300;
+    this.radius = config.radius || 20;    // for selection & drawing
+    this.maxHp = config.maxHp || 100;     // total HP
+    this.hp = this.maxHp;
+    this.damage = config.damage || 10;    // per attack
+    this.attackInterval = config.attackInterval || 1.0; // seconds
+    this.range = config.range || 20;      // how close to engage for melee
+    this.isMelee = config.isMelee || true; // if false => might do ranged logic
+    // For revival
+    this.dead = false;
+    this.respawnTimer = 0;
+    this.respawnTime = 10; // seconds greyed out
 
-    // Quick approach: place hero at path start
-    if (game.path && game.path.length > 0) {
-      this.x = game.path[0].x;
-      this.y = game.path[0].y;
-    }
+    this.targetX = this.x; // if moving to a user-clicked destination
+    this.targetY = this.y;
+    this.speed = config.speed || 80; // movement speed
 
-    this.targetEnemy = null;
+    // Engagement
+    this.currentEnemy = null;
     this.attackCooldown = 0;
-    this.attackRate = 1.5; // 1 attack every 1.5 seconds
+
+    // Simple offset for archer? (not fully implemented, but you could if you want)
   }
 
-  update(deltaSec) {
-    if (!this.game.enemies.length) {
-      // no enemies => stand still
-      this.targetEnemy = null;
+  update(deltaSec, game) {
+    // If dead, handle respawn timer
+    if (this.dead) {
+      this.respawnTimer -= deltaSec;
+      if (this.respawnTimer <= 0) {
+        // Revive
+        this.dead = false;
+        this.hp = this.maxHp;
+        // On revival, reappear at your last commanded position
+        // (or you could do something else if you prefer)
+      }
       return;
     }
 
-    // find or confirm target
-    if (!this.targetEnemy || this.targetEnemy.dead) {
-      this.targetEnemy = this.findClosestEnemy();
+    // If alive, move toward targetX/targetY (if we're not currently engaged)
+    // If we are engaged, we remain locked in place for the fight.
+    if (!this.currentEnemy) {
+      this.moveToDestination(deltaSec);
     }
 
-    // if we have a target
-    if (this.targetEnemy) {
-      // move to it if not in range
-      const ex = this.targetEnemy.x;
-      const ey = this.targetEnemy.y;
-      const dx = ex - this.x;
-      const dy = ey - this.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-
-      if (dist > this.range) {
-        // approach
-        const step = this.speed * deltaSec;
-        if (dist <= step) {
-          this.x = ex;
-          this.y = ey;
-        } else {
-          this.x += (dx/dist) * step;
-          this.y += (dy/dist) * step;
-        }
-      } else {
-        // in range => attack
-        this.attackCooldown -= deltaSec;
-        if (this.attackCooldown <= 0) {
-          this.targetEnemy.hp -= this.damage;
-          this.attackCooldown = this.attackRate;
-        }
-      }
-    }
-  }
-
-  findClosestEnemy() {
-    let bestEnemy = null;
-    let bestDist = 999999;
-    this.game.enemies.forEach(e => {
-      if (!e.dead) {
+    // If melee, check engagement
+    if (this.isMelee && !this.currentEnemy) {
+      // see if there's an enemy within range
+      const enemy = game.enemies.find(e => {
+        // measure center to center
         const dx = e.x - this.x;
         const dy = e.y - this.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestEnemy = e;
+        return dist <= this.range + e.width/2; 
+      });
+      if (enemy) {
+        // engage
+        this.currentEnemy = enemy;
+      }
+    }
+
+    // If engaged, fight
+    if (this.currentEnemy) {
+      // check if enemy is gone or dead
+      if (this.currentEnemy.dead || !game.enemies.includes(this.currentEnemy)) {
+        this.currentEnemy = null;
+        // maybe move back to original position? 
+        // If we want that, the hero won't remain where the fight ended.
+        // We'll do the "hero stays put" approach for now.
+        return;
+      }
+
+      // Attack cooldown
+      this.attackCooldown -= deltaSec;
+      if (this.attackCooldown <= 0) {
+        this.attackCooldown = this.attackInterval;
+        // We do random or fixed damage
+        const dmg = this.damage; 
+        this.currentEnemy.hp -= dmg;
+        if (this.currentEnemy.hp <= 0) {
+          // kill the enemy
+          this.currentEnemy.hp = 0;
+          this.currentEnemy.dead = true;
+          // enemy awarding gold, etc. is done in enemyManager
+
+          // hero can return to last position
+          // but let's simply let them remain where they are for the moment:
+          this.currentEnemy = null;
         }
       }
-    });
-    return bestEnemy;
+    }
   }
 
   draw(ctx) {
-    // For now, a simple placeholder circle
+    // if dead, draw grey circle
+    if (this.dead) {
+      ctx.fillStyle = "grey";
+    } else {
+      ctx.fillStyle = this.isMelee ? "darkslateblue" : "darkolivegreen";
+    }
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.w / 2, 0, Math.PI * 2);
-    ctx.fillStyle = (this.heroType === "archer") ? "orange" : "purple";
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
     ctx.fill();
 
-    // For debugging, can show a range circle
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(255,255,0,0.3)";
-    ctx.stroke();
+    // small HP bar
+    if (!this.dead && this.hp < this.maxHp) {
+      const barW = 40;
+      const pct = this.hp / this.maxHp;
+      ctx.fillStyle = "red";
+      ctx.fillRect(this.x - barW/2, this.y - this.radius - 12, barW, 5);
+      ctx.fillStyle = "lime";
+      ctx.fillRect(this.x - barW/2, this.y - this.radius - 12, barW * pct, 5);
+    }
+  }
+
+  moveToDestination(deltaSec) {
+    const dx = this.targetX - this.x;
+    const dy = this.targetY - this.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 2) {
+      // close enough, stop
+      this.x = this.targetX;
+      this.y = this.targetY;
+      return;
+    }
+    const step = this.speed * deltaSec;
+    if (step >= dist) {
+      this.x = this.targetX;
+      this.y = this.targetY;
+    } else {
+      this.x += (dx / dist) * step;
+      this.y += (dy / dist) * step;
+    }
+  }
+
+  // Called when hero takes damage
+  takeDamage(amount) {
+    if (this.dead) return;
+    this.hp -= amount;
+    if (this.hp <= 0) {
+      this.dead = true;
+      this.hp = 0;
+      this.respawnTimer = this.respawnTime;
+      this.currentEnemy = null;
+    }
+  }
+}
+
+export class HeroManager {
+  constructor(game) {
+    this.game = game;
+    this.heroes = [];
+  }
+
+  addHero(config) {
+    const hero = new Hero(config);
+    this.heroes.push(hero);
+    return hero;
+  }
+
+  update(deltaSec) {
+    this.heroes.forEach(hero => {
+      hero.update(deltaSec, this.game);
+    });
+  }
+
+  draw(ctx) {
+    this.heroes.forEach(hero => {
+      hero.draw(ctx);
+    });
+  }
+
+  // Get hero at click
+  getHeroAt(mx, my) {
+    return this.heroes.find(h => {
+      const dx = mx - h.x;
+      const dy = my - h.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      return dist <= h.radius;
+    });
   }
 }
