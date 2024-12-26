@@ -41,9 +41,7 @@
         <!-- LEFT column: current game info, enemy HP label & toggles, gold, restart -->
         <div id="settingsLeftColumn">
           <div id="currentGameLabel" class="smallInfoLabel"></div>
-
-          <!-- Add the requested <hr> here -->
-          <hr style="margin: 6px 0;"/>
+          <hr style="margin: 6px 0;" />
 
           <!-- "Enemy HP" label + segmented buttons -->
           <div id="enemyHpRow">
@@ -53,7 +51,8 @@
 
           <!-- Starting gold + input -->
           <div id="startingGoldRow">
-            <label for="startingGoldInput">Starting gold</label>
+            <!-- Give this label an ID so we can style it the same as #enemyHpLabel -->
+            <label id="startingGoldLabel" for="startingGoldInput">Starting gold</label>
             <input type="number" id="startingGoldInput" value="1000" />
           </div>
 

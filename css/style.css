@@ -27,7 +27,7 @@ body {
 /* Make all buttons more tap-friendly */
 button,
 .actionButton {
-    padding: 6px 10px; /* 2px more all around than before */
+    padding: 6px 10px;
     cursor: pointer;
 }
 
@@ -116,47 +116,37 @@ button,
     gap: 15px;
 }
 
-/* left column = 200-250px wide, right column flexible */
-#settingsLeftColumn {
-    flex: 0 0 220px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+/* Each column is 50% width so they are equal */
+#settingsLeftColumn, #settingsRightColumn {
+    width: 50%;
+    box-sizing: border-box; /* ensure padding doesn't break the 50% layout */
 }
 
-#enemyHpRow {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-#enemyHpLabel {
-    font-size: 12px; 
-    margin: 0; 
+/* Make the "Enemy HP" and "Starting gold" label consistent in styling */
+#enemyHpLabel,
+#startingGoldLabel {
+    font-size: 12px;
+    margin: 0;
     padding: 0;
 }
 
 /* The segmented HP buttons: smaller text, less padding */
 .enemyHpOption {
-    font-size: 10px;         /* 2px smaller than default 12px */
-    padding: 3px 2px;        /* reduce top/bottom by ~50%, left/right to 1-2px */
+    font-size: 10px;     
+    padding: 3px 2px;    
     margin-right: 2px;
 }
 
-/* Container for tower stats table on right */
-#settingsRightColumn {
-    flex: 1;
-}
-
-/* Debug table container + smaller text in table */
+/* Debug table container + smaller text in table (by default 10px) */
 #debugTableContainer {
     margin-top: 0;
+    /* We'll reduce the entire right column's font size by 25% -> 0.75 scale */
+    font-size: 0.75em;
 }
 
 #debugTable {
     border-collapse: collapse;
     border: 1px solid #999;
-    font-size: 10px; /* reduce by 2px from normal ~12px */
     width: 100%;
 }
 
@@ -166,6 +156,7 @@ button,
     border: 1px solid #666;
 }
 
+/* small label */
 .smallInfoLabel {
     font-size: 12px;
     line-height: 1.2em;

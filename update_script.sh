@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
-# This script implements two changes:
-# 1) When changing Enemy HP or Starting Gold in the Settings dialog, it should NOT
-#    update the "Current game" display or actually affect the live game until
-#    "Restart Game" is clicked.
-# 2) Add an <hr> line between the current game label and the enemy HP input.
+# OVERVIEW
+# 1) Make the "Starting gold" label match the "Enemy HP" label size.
+# 2) Make left column equal width to right column (50/50).
+# 3) Insert a hard return between "Current game:" and the actual settings text so it appears on two lines.
+# 4) Reduce the font size of the right column (tower stats) by 25%.
 
-# We'll overwrite index.html (for the <hr>), and js/main.js (to remove
-# the real-time "current game" label update logic on HP toggle or gold change).
+# We'll accomplish this by updating:
+# - index.html (to add an ID to the starting gold label and ensure consistent DOM structure).
+# - css/style.css (to apply column widths, label font sizes, and 75% font-size to the right column).
+# - js/main.js (to insert a <br> after "Current game:" in the currentGameLabel).
 
 ########################################
 # Overwrite index.html
@@ -56,9 +58,7 @@ cat << 'EOF' > index.html
         <!-- LEFT column: current game info, enemy HP label & toggles, gold, restart -->
         <div id="settingsLeftColumn">
           <div id="currentGameLabel" class="smallInfoLabel"></div>
-
-          <!-- Add the requested <hr> here -->
-          <hr style="margin: 6px 0;"/>
+          <hr style="margin: 6px 0;" />
 
           <!-- "Enemy HP" label + segmented buttons -->
           <div id="enemyHpRow">
@@ -68,7 +68,8 @@ cat << 'EOF' > index.html
 
           <!-- Starting gold + input -->
           <div id="startingGoldRow">
-            <label for="startingGoldInput">Starting gold</label>
+            <!-- Give this label an ID so we can style it the same as #enemyHpLabel -->
+            <label id="startingGoldLabel" for="startingGoldInput">Starting gold</label>
             <input type="number" id="startingGoldInput" value="1000" />
           </div>
 
@@ -110,6 +111,193 @@ cat << 'EOF' > index.html
     <script type="module" src="./js/main.js"></script>
   </body>
 </html>
+EOF
+
+########################################
+# Overwrite css/style.css
+########################################
+cat << 'EOF' > css/style.css
+/* Make the body relatively positioned, so absolutely positioned elements anchor to it */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #333;
+    color: #eee;
+    font-family: sans-serif;
+    position: relative;
+}
+
+/* Game Container */
+#gameContainer {
+    position: relative;
+    width: 800px;
+    margin: 0 auto;
+}
+
+/* Top-right buttons (Pause, Speed, Settings) container */
+#topButtons {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 6px;
+}
+
+/* Make all buttons more tap-friendly */
+button,
+.actionButton {
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+/* Action buttons share these styles */
+.actionButton {
+    background-color: #800;  /* Dark red */
+    color: #fff;
+    border: 1px solid #600;
+    font-size: 12px;
+    border-radius: 3px;
+}
+
+.actionButton:hover {
+    background-color: #a00;  /* Slightly lighter on hover */
+}
+
+/* Game canvas styling (center + border) */
+#gameCanvas {
+    display: block;
+    margin: 0 auto;
+    background-color: #000;
+    border: 2px solid #aaa;
+}
+
+/* Enemy stats panel at bottom-left */
+#enemyStats {
+    display: none;
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 6px;
+    border: 1px solid #999;
+    border-radius: 3px;
+}
+
+/* Constrain the enemy image to 80px max each dimension */
+#enemyImage {
+    max-width: 80px;
+    max-height: 80px;
+}
+
+/* Tower creation/upgrade panel */
+#towerSelectPanel {
+    display: none;
+    position: absolute;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid #999;
+    border-radius: 3px;
+    padding: 5px;
+    color: #fff;
+}
+
+/* Settings dialog */
+#settingsDialog {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 600px;
+    background: rgba(0,0,0,0.85);
+    border: 2px solid #999;
+    border-radius: 8px;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    padding: 10px;
+}
+
+/* Close button for the settings dialog */
+#settingsDialogClose {
+    float: right;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+/* "Settings" heading */
+#settingsHeading {
+    margin: 0;
+    margin-bottom: 10px;
+}
+
+/* 2-column layout for settings content */
+#settingsDialogContent {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+}
+
+/* Each column is 50% width so they are equal */
+#settingsLeftColumn, #settingsRightColumn {
+    width: 50%;
+    box-sizing: border-box; /* ensure padding doesn't break the 50% layout */
+}
+
+/* Make the "Enemy HP" and "Starting gold" label consistent in styling */
+#enemyHpLabel,
+#startingGoldLabel {
+    font-size: 12px;
+    margin: 0;
+    padding: 0;
+}
+
+/* The segmented HP buttons: smaller text, less padding */
+.enemyHpOption {
+    font-size: 10px;     
+    padding: 3px 2px;    
+    margin-right: 2px;
+}
+
+/* Debug table container + smaller text in table (by default 10px) */
+#debugTableContainer {
+    margin-top: 0;
+    /* We'll reduce the entire right column's font size by 25% -> 0.75 scale */
+    font-size: 0.75em;
+}
+
+#debugTable {
+    border-collapse: collapse;
+    border: 1px solid #999;
+    width: 100%;
+}
+
+#debugTable th,
+#debugTable td {
+    padding: 4px 8px;
+    border: 1px solid #666;
+}
+
+/* small label */
+.smallInfoLabel {
+    font-size: 12px;
+    line-height: 1.2em;
+}
+
+/* Lose / Win messages (dialog style) */
+#loseMessage,
+#winMessage {
+    display: none;
+    text-align: center;
+    font-family: sans-serif;
+    margin-top: 20px;
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85);
+    border: 2px solid #999;
+    padding: 20px;
+    border-radius: 8px;
+    z-index: 9999;
+}
 EOF
 
 ########################################
@@ -200,10 +388,10 @@ async function startGameWithGold(startingGold) {
   // Start
   game.start();
 
-  // Update current game label ONLY NOW, after actual restart
+  // Update current game label with a hard return after "Current game:"
   const currentGameLabel = document.getElementById("currentGameLabel");
   if (currentGameLabel) {
-    currentGameLabel.textContent = `Current game: Starting gold: ${startingGold}, Enemy HP: ${enemyHpPercent}%`;
+    currentGameLabel.innerHTML = `Current game:<br>Starting gold: ${startingGold}, Enemy HP: ${enemyHpPercent}%`;
   }
 }
 
@@ -235,8 +423,6 @@ window.addEventListener("load", async () => {
       if (value === enemyHpPercent) {
         btn.style.backgroundColor = "#444";
       }
-      // NOTE: We do NOT update current game or label on change
-      // We only do so upon "Restart Game"
       btn.addEventListener("click", () => {
         // Clear old highlights
         document.querySelectorAll(".enemyHpOption").forEach(b => {
@@ -318,5 +504,5 @@ EOF
 # Commit and push
 ########################################
 git add .
-git commit -m "Only update 'Current game settings' on Restart, not on immediate input changes. Add <hr> between currentGameLabel and enemy HP row."
+git commit -m "Match label sizes, make columns 50/50, add line break in current game label, reduce right column font-size by 25%."
 git push
