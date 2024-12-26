@@ -1,6 +1,7 @@
 import { EnemyManager } from "./enemyManager.js";
 import { TowerManager } from "./towerManager.js";
 import { WaveManager }  from "./waveManager.js";
+import { HeroManager }  from "./heroManager.js";
 
 export class Game {
   constructor(
@@ -15,65 +16,57 @@ export class Game {
     this.height = canvas.height;
 
     this.gold = 200;
-    // track both current and max lives for the "x/y" display
     this.lives = 20;
     this.maxLives = 20;
 
-    // Speed handling
     this.speedOptions = [1, 2, 4, 0.5];
     this.speedIndex = 0;
     this.gameSpeed = this.speedOptions[this.speedIndex];
 
-    // Start paused, label will show icon "▶" initially
     this.isFirstStart = true;
     this.paused = true;
 
-    // Level data
     this.levelData = null;
     this.backgroundImg = null;
     this.path = [];
     this.towerSpots = [];
 
-    // Enemies
     this.enemies = [];
-
-    // Global enemy HP multiplier (set from outside; includes the 0.5 factor)
     this.globalEnemyHpMultiplier = 1.0;
 
-    // Managers
     this.enemyManager = new EnemyManager(this);
     this.towerManager = new TowerManager(this);
     this.waveManager  = new WaveManager(this);
 
-    // Main loop
-    this.lastTime = 0;
+    // hero manager is created dynamically if hero is chosen
+    this.heroManager = null;
 
-    // Debug mode always on now
+    this.lastTime = 0;
     this.debugMode = true;
 
-    // Pause/Resume button
+    // Pause/Resume
     const pauseBtn = document.getElementById("pauseButton");
-    pauseBtn.innerHTML = "&#9658;"; // "▶"
+    pauseBtn.innerHTML = "&#9658;";
     pauseBtn.addEventListener("click", () => {
       if (this.isFirstStart) {
         this.isFirstStart = false;
         this.paused = false;
-        pauseBtn.innerHTML = "&#10073;&#10073;"; // "⏸"
+        pauseBtn.innerHTML = "&#10073;&#10073;";
         return;
       }
       this.paused = !this.paused;
       pauseBtn.innerHTML = this.paused ? "&#9658;" : "&#10073;&#10073;";
     });
 
-    // Speed toggle button
+    // Speed toggle
     const speedBtn = document.getElementById("speedToggleButton");
     speedBtn.addEventListener("click", () => {
       this.speedIndex = (this.speedIndex + 1) % this.speedOptions.length;
       this.gameSpeed = this.speedOptions[this.speedIndex];
-      speedBtn.textContent = `${this.gameSpeed}x`;
+      speedBtn.textContent = this.gameSpeed + "x";
     });
 
-    // Canvas click
+    // canvas click
     this.canvas.addEventListener("click", (e) => this.handleCanvasClick(e));
   }
 
@@ -88,15 +81,18 @@ export class Game {
       x: pt.x * scaleX,
       y: pt.y * scaleY,
     }));
-    // Tower spots 2x bigger => store them, but we'll draw radius 20
+
     this.towerSpots = data.towerSpots.map(s => ({
       x: s.x * scaleX,
       y: s.y * scaleY,
       occupied: false,
     }));
 
-    // Load waves into WaveManager
     this.waveManager.loadWavesFromLevel(data);
+  }
+
+  createHero(heroType) {
+    this.heroManager = new HeroManager(this, heroType);
   }
 
   start() {
@@ -107,18 +103,17 @@ export class Game {
     const delta = (timestamp - this.lastTime) || 0;
     this.lastTime = timestamp;
 
-    // Convert to seconds, then scale by gameSpeed
     let deltaSec = delta / 1000;
     deltaSec *= this.gameSpeed;
 
-    // Update if not paused
     if (!this.paused) {
       this.waveManager.update(deltaSec);
       this.enemyManager.update(deltaSec);
       this.towerManager.update(deltaSec);
+      if (this.heroManager) {
+        this.heroManager.update(deltaSec);
+      }
     }
-
-    // Always draw
     this.draw();
     requestAnimationFrame((ts) => this.gameLoop(ts));
   }
@@ -150,7 +145,12 @@ export class Game {
     // Towers
     this.towerManager.drawTowers(this.ctx);
 
-    // Tower spots (debug overlay) - radius 20
+    // Hero
+    if (this.heroManager) {
+      this.heroManager.draw(this.ctx);
+    }
+
+    // Tower spots (debug)
     this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
     this.towerSpots.forEach((spot, i) => {
       this.ctx.beginPath();

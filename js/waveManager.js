@@ -1,13 +1,11 @@
+import { awardStars } from "./main.js";
+
 export class WaveManager {
   constructor(game) {
     this.game = game;
-
     this.waveIndex = 0;
     this.waveActive = false;
-
-    // Start with no forced delay
     this.timeUntilNextWave = 0;
-
     this.waves = [];
   }
 
@@ -17,7 +15,6 @@ export class WaveManager {
   }
 
   update(deltaSec) {
-    // If wave not active, see if there's another wave to start
     if (!this.waveActive && this.waveIndex < this.waves.length) {
       this.timeUntilNextWave -= deltaSec;
       if (this.timeUntilNextWave <= 0) {
@@ -25,7 +22,6 @@ export class WaveManager {
       }
     }
 
-    // Check if the current wave is finished
     if (this.waveActive) {
       const waveInfo = this.waves[this.waveIndex];
       const allSpawned = waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
@@ -35,14 +31,18 @@ export class WaveManager {
         this.waveIndex++;
 
         if (this.waveIndex >= this.waves.length) {
-          // That was the last wave
-          // If the game hasn't been lost, show "You win"
+          // last wave done
           if (this.game.lives > 0 && this.game.uiManager) {
             this.game.paused = true;
             this.game.uiManager.showWinDialog(this.game.lives, this.game.maxLives);
+            // Suppose we do a star rating calculation
+            // e.g. if you have >= 18 lives => 3 stars, >=10 => 2 stars, else 1 star
+            let starCount = 1;
+            if (this.game.lives >= 18) starCount = 3;
+            else if (this.game.lives >= 10) starCount = 2;
+            awardStars(starCount);
           }
         } else {
-          // prepare next wave
           this.timeUntilNextWave = 0;
         }
       }
@@ -52,7 +52,6 @@ export class WaveManager {
   startWave(index) {
     this.waveActive = true;
     const waveInfo = this.waves[index];
-
     waveInfo.enemyGroups.forEach(group => {
       group.spawnedCount = 0;
       const timer = setInterval(() => {

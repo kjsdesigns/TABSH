@@ -1,39 +1,13 @@
+import { TOWER_DEFINITIONS } from "./data/towerConfig.js";
+
 export class TowerManager {
   constructor(game) {
     this.game = game;
     this.towers = [];
     this.projectiles = [];
 
-    // Single data definition for tower types
-    // Increase fireRate by 20% => multiply each base fireRate by 0.8
-    this.towerTypes = [
-      {
-        type: "point",
-        basePrice: 80,
-        range: 169,
-        splashRadius: 0,
-        fireRate: 1.5 * 0.8, // 1.2
-        upgrades: [
-          { level: 1, damage: 10, upgradeCost: 0   },
-          { level: 2, damage: 15, upgradeCost: 50  },
-          { level: 3, damage: 20, upgradeCost: 100 },
-          { level: 4, damage: 25, upgradeCost: 150 },
-        ],
-      },
-      {
-        type: "splash",
-        basePrice: 80,
-        range: 104,
-        splashRadius: 50,
-        fireRate: 1.5 * 0.8, // 1.2
-        upgrades: [
-          { level: 1, damage: 8,  upgradeCost: 0   },
-          { level: 2, damage: 12, upgradeCost: 50  },
-          { level: 3, damage: 16, upgradeCost: 100 },
-          { level: 4, damage: 20, upgradeCost: 150 },
-        ],
-      },
-    ];
+    // We no longer embed tower data here; we import from TOWER_DEFINITIONS
+    this.towerTypes = TOWER_DEFINITIONS;
   }
 
   getTowerData() {
@@ -45,7 +19,6 @@ export class TowerManager {
     if (!def) return null;
 
     const firstLvl = def.upgrades[0];
-    // Track gold spent (initial build cost)
     return {
       type: def.type,
       level: 1,
@@ -59,12 +32,11 @@ export class TowerManager {
       x: 0,
       y: 0,
       spot: null,
-      goldSpent: def.basePrice, // store total gold spent
+      goldSpent: def.basePrice,
     };
   }
 
   update(deltaSec) {
-    // If gameOver, skip
     if (this.game.gameOver) return;
 
     // Fire towers
@@ -155,44 +127,33 @@ export class TowerManager {
   upgradeTower(tower) {
     const def = this.towerTypes.find(t => t.type === tower.type);
     if (!def) return;
-    if (tower.level >= def.upgrades.length) return; // maxed
+    if (tower.level >= def.upgrades.length) return;
 
     const nextLvlIndex = tower.level;
     const nextLvl = def.upgrades[nextLvlIndex];
     if (!nextLvl) return;
-
     if (this.game.gold < nextLvl.upgradeCost) return;
 
     // Spend gold
     this.game.gold -= nextLvl.upgradeCost;
-    tower.goldSpent += nextLvl.upgradeCost; // track it
+    tower.goldSpent += nextLvl.upgradeCost;
     tower.level++;
 
     tower.damage = nextLvl.damage;
     tower.upgradeCost = def.upgrades[tower.level]
       ? def.upgrades[tower.level].upgradeCost
       : 0;
-
-    // Slightly faster fire rate each upgrade?
-    // If you want that, you can do something like: tower.fireRate = tower.fireRate * 0.95, etc.
-    // For now, we leave as-is (the base doesn't mention it).
   }
 
   sellTower(tower) {
-    // 80% of goldSpent
     const refund = Math.floor(tower.goldSpent * 0.8);
     this.game.gold += refund;
-
-    // Remove tower from manager
     this.towers = this.towers.filter(t => t !== tower);
-
-    // Free the spot
     if (tower.spot) tower.spot.occupied = false;
   }
 
   drawTowers(ctx) {
     this.towers.forEach(t => {
-      // Tower radius for display
       const drawRadius = 24 + t.level * 4;
       ctx.beginPath();
       ctx.arc(t.x, t.y, drawRadius, 0, Math.PI * 2);
@@ -201,7 +162,7 @@ export class TowerManager {
       ctx.strokeStyle = "#fff";
       ctx.stroke();
 
-      // Optional range circle
+      // optional range circle
       ctx.beginPath();
       ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2);
       ctx.strokeStyle = "rgba(255,255,255,0.3)";
