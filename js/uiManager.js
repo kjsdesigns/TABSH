@@ -35,7 +35,7 @@ export class UIManager {
       const thead = document.createElement("thead");
       const headerRow = document.createElement("tr");
       headerRow.innerHTML = `
-        <th style="min-width: 120px;"></th>
+        <th></th>
         <th>${towerData[0].type.toUpperCase()} Tower</th>
         <th>${towerData[1].type.toUpperCase()} Tower</th>
       `;
@@ -86,7 +86,7 @@ export class UIManager {
       this.debugTable.appendChild(tbody);
     }
   
-    // Tower click area is now based on the actual drawn radius (24 + level*4).
+    // Tower click area is the actual drawn radius
     getTowerAt(mx, my) {
       return this.game.towerManager.towers.find(t => {
         const drawRadius = 24 + t.level * 4;
@@ -96,14 +96,13 @@ export class UIManager {
       });
     }
 
-    // Unoccupied tower spot clickable area can remain radius=20 for building a new tower
+    // Unoccupied tower spot clickable area = radius 20
     getTowerSpotAt(mx, my) {
       return this.game.towerSpots.find(s => {
-        // only if not occupied
         if (s.occupied) return false;
         const dx = mx - s.x;
         const dy = my - s.y;
-        return (dx*dx + dy*dy) <= 400; // radius=20
+        return (dx*dx + dy*dy) <= (20*20);
       });
     }
   
@@ -137,7 +136,7 @@ export class UIManager {
       const entity = this.getEntityUnderMouse(mx, my);
   
       if (!entity) {
-        // clicked empty space, hide panels
+        // clicked empty space
         this.selectedEnemy = null;
         this.hideEnemyStats();
         this.hideTowerPanel();
@@ -145,21 +144,16 @@ export class UIManager {
       }
   
       if (entity.type === "towerSpot") {
-        const spot = entity.spot;
-        this.showNewTowerPanel(spot, rect);
+        this.showNewTowerPanel(entity.spot, rect);
         return;
       }
-
       if (entity.type === "tower") {
-        const tower = entity.tower;
-        this.showExistingTowerPanel(tower, rect);
+        this.showExistingTowerPanel(entity.tower, rect);
         return;
       }
-  
       if (entity.type === "enemy") {
-        const clickedEnemy = entity.enemy;
-        this.selectedEnemy = clickedEnemy;
-        this.showEnemyStats(clickedEnemy);
+        this.selectedEnemy = entity.enemy;
+        this.showEnemyStats(entity.enemy);
         this.hideTowerPanel();
       }
     }
@@ -176,7 +170,7 @@ export class UIManager {
       title.textContent = `${tower.type.toUpperCase()} Tower`;
       this.towerSelectPanel.appendChild(title);
 
-      // Sell Tower button (near top, smaller style)
+      // Sell Tower button near top, smaller
       const sellBtn = document.createElement("button");
       sellBtn.textContent = "Sell Tower";
       sellBtn.style.display = "block";
@@ -189,11 +183,14 @@ export class UIManager {
       });
       this.towerSelectPanel.appendChild(sellBtn);
   
+      // Round fireRate to 1 decimal place
+      const currentFireRate = Math.round(tower.fireRate * 10) / 10;
+
       const currStats = document.createElement("div");
       currStats.innerHTML = `
         Level: ${tower.level}<br>
         Damage: ${tower.damage}<br>
-        Fire Rate: ${tower.fireRate.toFixed(2)}s
+        Fire Rate: ${currentFireRate.toFixed(1)}s
       `;
       this.towerSelectPanel.appendChild(currStats);
   
@@ -206,14 +203,18 @@ export class UIManager {
           if (nextDef) {
             const nextDamage = nextDef.damage;
             const cost = nextDef.upgradeCost;
-            const nextRate = Math.max(0.8, tower.fireRate - 0.2).toFixed(2);
-  
+
+            // If we want the next level's rate to be (base - 0.2) or something:
+            // For consistency, just do tower.fireRate * ??? or something.
+            // We'll just do a simple 0.2 improvement for now:
+            const nextRate = Math.round(Math.max(0.1, tower.fireRate - 0.2) * 10)/10;
+
             const nextStats = document.createElement("div");
             nextStats.innerHTML = `
               <hr>
               <strong>Next Level ${nextLevel}:</strong><br>
               Damage: ${nextDamage}<br>
-              Fire Rate: ${nextRate}s<br>
+              Fire Rate: ${nextRate.toFixed(1)}s<br>
               Upgrade Cost: $${cost}
             `;
             this.towerSelectPanel.appendChild(nextStats);
@@ -272,9 +273,12 @@ export class UIManager {
         nameEl.style.fontWeight = "bold";
         nameEl.textContent = def.type.toUpperCase();
         towerDiv.appendChild(nameEl);
-  
+
+        // Round fireRate to 1 decimal for display
+        const displayRate = Math.round(def.fireRate * 10) / 10;
+
         const statsEl = document.createElement("div");
-        statsEl.innerHTML = `DMG: ${def.upgrades[0].damage}<br>Rate: ${def.fireRate}s`;
+        statsEl.innerHTML = `DMG: ${def.upgrades[0].damage}<br>Rate: ${displayRate.toFixed(1)}s`;
         towerDiv.appendChild(statsEl);
   
         const buildBtn = document.createElement("button");
@@ -330,6 +334,8 @@ export class UIManager {
      */
     showLoseDialog() {
       this.loseMessageDiv.style.display = "block";
+      // Mark game over so it doesn't keep updating
+      this.game.gameOver = true;
     }
 
     /**
@@ -337,28 +343,22 @@ export class UIManager {
      */
     showWinDialog(finalLives, maxLives) {
       this.winMessageDiv.style.display = "block";
-      const starsDiv = this.winMessageDiv.querySelector("#winStars");
+      // Mark game over
+      this.game.gameOver = true;
 
+      const starsDiv = this.winMessageDiv.querySelector("#winStars");
       let starCount = 1;
       if (finalLives >= 18) {
         starCount = 3;
       } else if (finalLives >= 10) {
         starCount = 2;
       }
-
       const starSymbols = [];
       for(let i=1; i<=3; i++){
-        if (i <= starCount) {
-          // lit star
-          starSymbols.push("★");
-        } else {
-          // dull star
-          starSymbols.push("☆");
-        }
+        if (i <= starCount) starSymbols.push("★");
+        else starSymbols.push("☆");
       }
-      if(starsDiv) {
-        starsDiv.innerHTML = starSymbols.join(" ");
-      }
+      if(starsDiv) starsDiv.innerHTML = starSymbols.join(" ");
     }
 
     // Update mouse cursor to pointer if over tower or enemy
@@ -370,9 +370,11 @@ export class UIManager {
       const entity = this.getEntityUnderMouse(mx, my);
       if (entity && (entity.type === "tower" || entity.type === "enemy")) {
         this.game.canvas.style.cursor = "pointer";
-      }
-      else {
-        this.game.canvas.style.cursor = entity ? "pointer" : "default";
+      } else if (entity && entity.type === "towerSpot") {
+        // Could also set to "pointer" if you want an indication for building
+        this.game.canvas.style.cursor = "pointer";
+      } else {
+        this.game.canvas.style.cursor = "default";
       }
     }
 }

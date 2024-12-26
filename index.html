@@ -33,23 +33,38 @@
     <!-- Panel for tower creation/upgrade -->
     <div id="towerSelectPanel"></div>
 
-    <!-- Settings dialog (hidden by default) -->
+    <!-- Settings dialog (hidden by default, now 2-column layout) -->
     <div id="settingsDialog">
       <div id="settingsDialogClose">&#10006;</div>
-      <div id="settingsContent">
-        <!-- Starting gold + restart -->
-        <div style="margin-bottom: 8px;">
-          <label for="startingGoldInput">Starting gold</label>
-          <input type="number" id="startingGoldInput" value="1000" />
-          <button id="restartGameButton">Restart Game</button>
+      <h2 id="settingsHeading">Settings</h2>
+      <div id="settingsDialogContent">
+        <!-- LEFT column: current game info, enemy HP label & toggles, gold, restart -->
+        <div id="settingsLeftColumn">
+          <div id="currentGameLabel" class="smallInfoLabel"></div>
+
+          <!-- "Enemy HP" label + segmented buttons -->
+          <div id="enemyHpRow">
+            <label id="enemyHpLabel">Enemy HP</label>
+            <div id="enemyHpSegment"></div>
+          </div>
+
+          <!-- Starting gold + input -->
+          <div id="startingGoldRow">
+            <label for="startingGoldInput">Starting gold</label>
+            <input type="number" id="startingGoldInput" value="1000" />
+          </div>
+
+          <!-- Restart game button at bottom -->
+          <button id="restartGameButton" class="actionButton" style="margin-top: 10px;">
+            Restart Game
+          </button>
         </div>
-        <!-- Enemy HP segmented toggle -->
-        <div id="enemyHpSegment" style="margin-bottom: 10px;">
-          <!-- Populated by main.js -->
-        </div>
-        <!-- Debug table container -->
-        <div id="debugTableContainer" style="margin-top: 10px;">
-          <table id="debugTable"></table>
+
+        <!-- RIGHT column: tower stats table -->
+        <div id="settingsRightColumn">
+          <div id="debugTableContainer">
+            <table id="debugTable"></table>
+          </div>
         </div>
       </div>
     </div>

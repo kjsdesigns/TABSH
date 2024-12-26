@@ -64,6 +64,12 @@ button,
     border-radius: 3px;
 }
 
+/* Constrain the enemy image to 80px max each dimension */
+#enemyImage {
+    max-width: 80px;
+    max-height: 80px;
+}
+
 /* Tower creation/upgrade panel */
 #towerSelectPanel {
     display: none;
@@ -81,7 +87,7 @@ button,
     position: fixed;
     top: 50%;
     left: 50%;
-    width: 300px;
+    width: 600px;
     background: rgba(0,0,0,0.85);
     border: 2px solid #999;
     border-radius: 8px;
@@ -95,6 +101,74 @@ button,
     float: right;
     cursor: pointer;
     margin-bottom: 10px;
+}
+
+/* "Settings" heading */
+#settingsHeading {
+    margin: 0;
+    margin-bottom: 10px;
+}
+
+/* 2-column layout for settings content */
+#settingsDialogContent {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+}
+
+/* left column = 200-250px wide, right column flexible */
+#settingsLeftColumn {
+    flex: 0 0 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#enemyHpRow {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#enemyHpLabel {
+    font-size: 12px; 
+    margin: 0; 
+    padding: 0;
+}
+
+/* The segmented HP buttons: smaller text, less padding */
+.enemyHpOption {
+    font-size: 10px;         /* 2px smaller than default 12px */
+    padding: 3px 2px;        /* reduce top/bottom by ~50%, left/right to 1-2px */
+    margin-right: 2px;
+}
+
+/* Container for tower stats table on right */
+#settingsRightColumn {
+    flex: 1;
+}
+
+/* Debug table container + smaller text in table */
+#debugTableContainer {
+    margin-top: 0;
+}
+
+#debugTable {
+    border-collapse: collapse;
+    border: 1px solid #999;
+    font-size: 10px; /* reduce by 2px from normal ~12px */
+    width: 100%;
+}
+
+#debugTable th,
+#debugTable td {
+    padding: 4px 8px;
+    border: 1px solid #666;
+}
+
+.smallInfoLabel {
+    font-size: 12px;
+    line-height: 1.2em;
 }
 
 /* Lose / Win messages (dialog style) */
@@ -113,16 +187,4 @@ button,
     padding: 20px;
     border-radius: 8px;
     z-index: 9999;
-}
-
-/* Debug table styling */
-#debugTable {
-    border-collapse: collapse;
-    border: 1px solid #999;
-}
-
-#debugTable th,
-#debugTable td {
-    padding: 4px 8px;
-    border: 1px solid #666;
 }
