@@ -22,6 +22,9 @@ export class UIManager {
       this.enemyGoldEl   = document.getElementById("enemyGold");
   
       this.selectedEnemy = null;
+
+      // Listen for mouse move to update cursor
+      this.game.canvas.addEventListener("mousemove", (e) => this.handleMouseMove(e));
     }
   
     initDebugTable() {
@@ -83,12 +86,24 @@ export class UIManager {
       this.debugTable.appendChild(tbody);
     }
   
-    // Increase detectionDist to 200 (was 100)
-    getTowerSpotAt(mx, my, detectionDist = 200) {
+    // Tower click area is now based on the actual drawn radius (24 + level*4).
+    getTowerAt(mx, my) {
+      return this.game.towerManager.towers.find(t => {
+        const drawRadius = 24 + t.level * 4;
+        const dx = mx - t.x;
+        const dy = my - t.y;
+        return (dx*dx + dy*dy) <= (drawRadius*drawRadius);
+      });
+    }
+
+    // Unoccupied tower spot clickable area can remain radius=20 for building a new tower
+    getTowerSpotAt(mx, my) {
       return this.game.towerSpots.find(s => {
+        // only if not occupied
+        if (s.occupied) return false;
         const dx = mx - s.x;
         const dy = my - s.y;
-        return dx * dx + dy * dy < detectionDist * detectionDist;
+        return (dx*dx + dy*dy) <= 400; // radius=20
       });
     }
   
@@ -103,6 +118,10 @@ export class UIManager {
     }
   
     getEntityUnderMouse(mx, my) {
+      const tower = this.getTowerAt(mx, my);
+      if (tower) {
+        return { type: "tower", tower };
+      }
       const spot = this.getTowerSpotAt(mx, my);
       if (spot) {
         return { type: "towerSpot", spot };
@@ -127,12 +146,13 @@ export class UIManager {
   
       if (entity.type === "towerSpot") {
         const spot = entity.spot;
-        const existingTower = this.game.towerManager.towers.find(t => t.spot === spot);
-        if (existingTower) {
-          this.showExistingTowerPanel(existingTower, rect);
-        } else {
-          this.showNewTowerPanel(spot, rect);
-        }
+        this.showNewTowerPanel(spot, rect);
+        return;
+      }
+
+      if (entity.type === "tower") {
+        const tower = entity.tower;
+        this.showExistingTowerPanel(tower, rect);
         return;
       }
   
@@ -155,6 +175,19 @@ export class UIManager {
       title.style.fontWeight = "bold";
       title.textContent = `${tower.type.toUpperCase()} Tower`;
       this.towerSelectPanel.appendChild(title);
+
+      // Sell Tower button (near top, smaller style)
+      const sellBtn = document.createElement("button");
+      sellBtn.textContent = "Sell Tower";
+      sellBtn.style.display = "block";
+      sellBtn.style.margin = "3px auto 6px auto";
+      sellBtn.style.fontSize = "0.85em";
+      sellBtn.style.padding = "2px 5px";
+      sellBtn.addEventListener("click", () => {
+        this.game.towerManager.sellTower(tower);
+        this.hideTowerPanel();
+      });
+      this.towerSelectPanel.appendChild(sellBtn);
   
       const currStats = document.createElement("div");
       currStats.innerHTML = `
@@ -201,17 +234,6 @@ export class UIManager {
         maxed.textContent = "Tower is at max level.";
         this.towerSelectPanel.appendChild(maxed);
       }
-
-      // Add Sell Tower button
-      const sellBtn = document.createElement("button");
-      sellBtn.style.display = "block";
-      sellBtn.style.margin = "6px auto 0 auto";
-      sellBtn.textContent = "Sell Tower";
-      sellBtn.addEventListener("click", () => {
-        this.game.towerManager.sellTower(tower);
-        this.hideTowerPanel();
-      });
-      this.towerSelectPanel.appendChild(sellBtn);
   
       // Show, measure, then position
       this.towerSelectPanel.style.display = "block";
@@ -312,7 +334,6 @@ export class UIManager {
 
     /**
      * Called by waveManager on final wave completion if we still have >0 lives
-     * Display 1, 2, or 3 stars based on how many lives remain
      */
     showWinDialog(finalLives, maxLives) {
       this.winMessageDiv.style.display = "block";
@@ -340,12 +361,18 @@ export class UIManager {
       }
     }
 
+    // Update mouse cursor to pointer if over tower or enemy
     handleMouseMove(e) {
       const rect = this.game.canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
   
       const entity = this.getEntityUnderMouse(mx, my);
-      this.game.canvas.style.cursor = entity ? "pointer" : "default";
+      if (entity && (entity.type === "tower" || entity.type === "enemy")) {
+        this.game.canvas.style.cursor = "pointer";
+      }
+      else {
+        this.game.canvas.style.cursor = entity ? "pointer" : "default";
+      }
     }
 }

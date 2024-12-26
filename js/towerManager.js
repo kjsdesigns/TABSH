@@ -5,13 +5,14 @@ export class TowerManager {
     this.projectiles = [];
 
     // Single data definition for tower types
+    // Increase fireRate by 20% => multiply each base fireRate by 0.8
     this.towerTypes = [
       {
         type: "point",
         basePrice: 80,
         range: 169,
         splashRadius: 0,
-        fireRate: 1.5,
+        fireRate: 1.5 * 0.8, // 1.2
         upgrades: [
           { level: 1, damage: 10, upgradeCost: 0   },
           { level: 2, damage: 15, upgradeCost: 50  },
@@ -24,7 +25,7 @@ export class TowerManager {
         basePrice: 80,
         range: 104,
         splashRadius: 50,
-        fireRate: 1.5,
+        fireRate: 1.5 * 0.8, // 1.2
         upgrades: [
           { level: 1, damage: 8,  upgradeCost: 0   },
           { level: 2, damage: 12, upgradeCost: 50  },
@@ -171,6 +172,10 @@ export class TowerManager {
     tower.upgradeCost = def.upgrades[tower.level]
       ? def.upgrades[tower.level].upgradeCost
       : 0;
+
+    // Slightly faster fire rate each upgrade?
+    // If you want that, you can do something like: tower.fireRate = tower.fireRate * 0.95, etc.
+    // For now, we leave as-is (the base doesn't mention it).
   }
 
   sellTower(tower) {
@@ -187,9 +192,10 @@ export class TowerManager {
 
   drawTowers(ctx) {
     this.towers.forEach(t => {
+      // Tower radius for display
+      const drawRadius = 24 + t.level * 4;
       ctx.beginPath();
-      // Double the circle radius from "12 + t.level*2" to something bigger
-      ctx.arc(t.x, t.y, (24 + t.level*4), 0, Math.PI * 2);
+      ctx.arc(t.x, t.y, drawRadius, 0, Math.PI * 2);
       ctx.fillStyle = (t.type === "point") ? "blue" : "red";
       ctx.fill();
       ctx.strokeStyle = "#fff";

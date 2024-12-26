@@ -5,19 +5,20 @@ import { loadAllAssets } from "./assetLoader.js";
 
 /**
  * Global parameters the user can set before starting the game:
- * - enemyHpPercent: now default 100, but we treat that as "50% of old baseline"
- *   => new globalEnemyHpMultiplier = 0.5 * (enemyHpPercent / 100).
+ * - enemyHpPercent: default 100 => now we use it as is (no 0.5 factor),
+ *   effectively doubling HP from the previous code.
  */
 let enemyHpPercent = 100;
 
 let game = null;
 
-/**
- * Reusable function to start (or restart) the game with chosen gold.
- */
+/** Keep track of the last known startingGold so we can "Restart" easily. */
+let lastStartingGold = 1000;
+
 async function startGameWithGold(startingGold) {
+  lastStartingGold = startingGold;
+
   const canvas = document.getElementById("gameCanvas");
-  const pauseBtn = document.getElementById("pauseButton");
   const enemyStatsDiv = document.getElementById("enemyStats");
   const towerSelectPanel = document.getElementById("towerSelectPanel");
   const debugTableContainer = document.getElementById("debugTableContainer");
@@ -43,8 +44,8 @@ async function startGameWithGold(startingGold) {
   uiManager.initDebugTable();
   game.uiManager = uiManager;
 
-  // This factor is 0.5 * (enemyHpPercent / 100) => new 100% = old 50%
-  game.globalEnemyHpMultiplier = 0.5 * (enemyHpPercent / 100);
+  // Doubling from the old baseline => just use (enemyHpPercent / 100)
+  game.globalEnemyHpMultiplier = (enemyHpPercent / 100);
 
   // Enemy definitions for loading
   const enemyTypes = [
@@ -93,7 +94,7 @@ window.addEventListener("load", async () => {
 
   const enemyHpSegment = document.getElementById("enemyHpSegment");
   // Clear old if any
-  enemyHpSegment.innerHTML = "";
+  if (enemyHpSegment) enemyHpSegment.innerHTML = "";
   hpOptions.forEach(value => {
     const btn = document.createElement("button");
     btn.textContent = value + "%";
@@ -111,7 +112,7 @@ window.addEventListener("load", async () => {
       // Highlight this one
       btn.style.backgroundColor = "#444";
     });
-    enemyHpSegment.appendChild(btn);
+    if (enemyHpSegment) enemyHpSegment.appendChild(btn);
   });
 
   // Start game with default or user-supplied gold
@@ -132,5 +133,49 @@ window.addEventListener("load", async () => {
   // Close the settings dialog
   settingsDialogClose.addEventListener("click", () => {
     settingsDialog.style.display = "none";
+  });
+
+  // Because we now have separate "Restart" + "Settings" in the game-over dialogs, wire them up here:
+  const loseRestartBtn = document.getElementById("loseRestartBtn");
+  const loseSettingsBtn = document.getElementById("loseSettingsBtn");
+  const winRestartBtn  = document.getElementById("winRestartBtn");
+  const winSettingsBtn = document.getElementById("winSettingsBtn");
+
+  if (loseRestartBtn) {
+    loseRestartBtn.addEventListener("click", async () => {
+      // Hide lose dialog, restart game with existing gold
+      document.getElementById("loseMessage").style.display = "none";
+      await startGameWithGold(lastStartingGold);
+    });
+  }
+  if (loseSettingsBtn) {
+    loseSettingsBtn.addEventListener("click", () => {
+      // Show settings, keep lose dialog behind it
+      settingsDialog.style.zIndex = "10001";
+      document.getElementById("loseMessage").style.zIndex = "10000";
+      settingsDialog.style.display = "block";
+    });
+  }
+  if (winRestartBtn) {
+    winRestartBtn.addEventListener("click", async () => {
+      // Hide win dialog, restart game
+      document.getElementById("winMessage").style.display = "none";
+      await startGameWithGold(lastStartingGold);
+    });
+  }
+  if (winSettingsBtn) {
+    winSettingsBtn.addEventListener("click", () => {
+      settingsDialog.style.zIndex = "10001";
+      document.getElementById("winMessage").style.zIndex = "10000";
+      settingsDialog.style.display = "block";
+    });
+  }
+
+  // If "Restart" is clicked from the settings dialog while a gameOver is showing:
+  // We can handle that the same as normal (the standard "Restart Game" button).
+  // Once "Restart Game" is clicked, we hide both lose/win dialogs:
+  restartGameButton.addEventListener("click", () => {
+    document.getElementById("loseMessage").style.display = "none";
+    document.getElementById("winMessage").style.display = "none";
   });
 });

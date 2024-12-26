@@ -54,14 +54,24 @@
       </div>
     </div>
 
-    <!-- End-game messages (overlays) -->
+    <!-- Lose message -->
     <div id="loseMessage">
       <h1 style="font-size: 3em; margin: 0;">You lost</h1>
       <div style="font-size: 6em;">X</div>
+      <div style="margin-top: 10px;">
+        <button id="loseRestartBtn" class="actionButton" style="margin-right: 10px;">Restart</button>
+        <button id="loseSettingsBtn" class="actionButton">Settings</button>
+      </div>
     </div>
+
+    <!-- Win message -->
     <div id="winMessage">
       <h1 style="font-size: 3em; margin: 0;">You win!</h1>
       <div id="winStars" style="font-size: 4em; color: gold; margin-top: 10px;"></div>
+      <div style="margin-top: 10px;">
+        <button id="winRestartBtn" class="actionButton" style="margin-right: 10px;">Restart</button>
+        <button id="winSettingsBtn" class="actionButton">Settings</button>
+      </div>
     </div>
 
     <script type="module" src="./js/main.js"></script>
