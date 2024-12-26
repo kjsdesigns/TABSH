@@ -8,7 +8,7 @@ export class Game {
     sendWaveBtn,
     enemyStatsDiv,
     towerSelectPanel,
-    /* Removed debugToggle, */ 
+    debugToggle,
     debugTableContainer
   ) {
     this.canvas = canvas;
@@ -16,10 +16,8 @@ export class Game {
     this.width = canvas.width;
     this.height = canvas.height;
 
-    // Basic stats
     this.gold = 200;
     this.lives = 20;
-    this.maxLives = 20; // For x/y display
 
     // Speed handling
     this.speedOptions = [1, 2, 4, 0.5];
@@ -29,6 +27,9 @@ export class Game {
     // Start paused, label will say "Start game"
     this.isFirstStart = true;
     this.paused = true;
+
+    // For detecting final win/loss
+    this.gameOver = false;
 
     // Level data
     this.levelData = null;
@@ -44,15 +45,11 @@ export class Game {
     this.towerManager = new TowerManager(this);
     this.waveManager  = new WaveManager(this);
 
-    // Additional factor for toggling enemy HP (default 1.0 => 100%)
-    this.enemyHpFactor = 1.0;
-
     // Main loop
     this.lastTime = 0;
 
-    // Debug mode always on
+    // Debug mode on by default
     this.debugMode = true;
-    debugTableContainer.style.display = "block";
 
     // Hook up wave button
     sendWaveBtn.addEventListener("click", () => {
@@ -81,11 +78,19 @@ export class Game {
       pauseBtn.textContent = this.paused ? "Resume" : "Pause";
     });
 
-    // Canvas click => pass to UIManager
-    this.canvas.addEventListener("click", (e) => this.handleCanvasClick(e));
+    // Debug toggle
+    debugToggle.addEventListener("click", () => {
+      this.debugMode = !this.debugMode;
+      debugToggle.textContent = this.debugMode
+        ? "Disable Debug Mode"
+        : "Enable Debug Mode";
+      debugTableContainer.style.display = this.debugMode ? "block" : "none";
+    });
+    debugToggle.textContent = "Disable Debug Mode";
+    debugTableContainer.style.display = "block";
 
-    // Reference to overlay
-    this.endOverlay = document.getElementById("endOverlay");
+    // Delegate clicks to UI Manager
+    this.canvas.addEventListener("click", (e) => this.handleCanvasClick(e));
   }
 
   setLevelData(data, bgImg) {
@@ -113,15 +118,25 @@ export class Game {
     requestAnimationFrame((ts) => this.gameLoop(ts));
   }
 
+  endGame(message) {
+    // Mark game over, pause
+    this.gameOver = true;
+    this.paused   = true;
+
+    // Show the dialog
+    const dlg = document.getElementById("gameOverDialog");
+    const msg = document.getElementById("gameOverMessage");
+    msg.textContent = message;
+    dlg.style.display = "block";
+  }
+
   gameLoop(timestamp) {
     const delta = (timestamp - this.lastTime) || 0;
     this.lastTime = timestamp;
 
-    // Convert to seconds, then scale by gameSpeed
     let deltaSec = delta / 1000;
     deltaSec *= this.gameSpeed;
 
-    // Update if not paused
     if (!this.paused) {
       this.waveManager.update(deltaSec);
       this.enemyManager.update(deltaSec);
@@ -134,10 +149,10 @@ export class Game {
   }
 
   handleCanvasClick(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
     if (this.uiManager && this.uiManager.handleCanvasClick) {
+      const rect = this.canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
       this.uiManager.handleCanvasClick(mx, my, rect);
     }
   }
@@ -149,26 +164,22 @@ export class Game {
       this.ctx.clearRect(0, 0, this.width, this.height);
     }
 
-    // Enemies
     this.enemies.forEach(enemy => {
       this.enemyManager.drawEnemy(this.ctx, enemy);
     });
 
-    // Projectiles
     this.towerManager.drawProjectiles(this.ctx);
-
-    // Towers
     this.towerManager.drawTowers(this.ctx);
 
-    // Tower spots (debug overlay)
+    // Tower spots (debug overlay) -- doubled radius
     this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
     this.towerSpots.forEach((spot, i) => {
       this.ctx.beginPath();
-      this.ctx.arc(spot.x, spot.y, 10, 0, Math.PI * 2);
+      this.ctx.arc(spot.x, spot.y, 20, 0, Math.PI * 2);
       this.ctx.fill();
       if (this.debugMode) {
         this.ctx.fillStyle = "white";
-        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 15);
+        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 25);
         this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
       }
     });
@@ -188,16 +199,13 @@ export class Game {
 
     // HUD
     this.ctx.fillStyle = "white";
-    // Gold
     this.ctx.fillText(`Gold: ${this.gold}`, 10, 50);
-    // Waves (use total wave count)
     this.ctx.fillText(
       `Wave: ${this.waveManager.waveIndex + 1}/${this.waveManager.waves.length}`,
       10,
       70
     );
-    // Lives as x/y
-    this.ctx.fillText(`Lives: ${this.lives}/${this.maxLives}`, 10, 90);
+    this.ctx.fillText(`Lives: ${this.lives}`, 10, 90);
 
     if (
       !this.waveManager.waveActive &&
@@ -205,40 +213,5 @@ export class Game {
     ) {
       this.ctx.fillText("Next wave is ready", 10, 110);
     }
-  }
-
-  showLoseOverlay() {
-    this.paused = true;
-    // Show an overlay with "You Lost" and giant red X
-    this.endOverlay.innerHTML = `
-      <div class="endMessage">You Lost</div>
-      <div class="bigRedX">X</div>
-    `;
-    this.endOverlay.style.display = "flex";
-  }
-
-  showWinOverlay() {
-    this.paused = true;
-    // Evaluate how many stars
-    let starCount = 1;
-    if (this.lives >= 18) {
-      starCount = 3;
-    } else if (this.lives >= 10) {
-      starCount = 2;
-    }
-    // Build star markup
-    const starHTML = [
-      starCount >= 1 ? '<span class="starLit">★</span>' : '<span class="starDim">★</span>',
-      starCount >= 2 ? '<span class="starLit">★</span>' : '<span class="starDim">★</span>',
-      starCount >= 3 ? '<span class="starLit">★</span>' : '<span class="starDim">★</span>'
-    ].join("");
-
-    this.endOverlay.innerHTML = `
-      <div class="endMessage">You Win</div>
-      <div class="starContainer">
-        ${starHTML}
-      </div>
-    `;
-    this.endOverlay.style.display = "flex";
   }
 }

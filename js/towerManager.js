@@ -9,7 +9,6 @@ export class TowerManager {
       {
         type: "point",
         basePrice: 80,
-        // Increase the old 130 range by another 30% => ~169
         range: 169,
         splashRadius: 0,
         fireRate: 1.5,
@@ -36,17 +35,16 @@ export class TowerManager {
     ];
   }
 
-  /** Return full tower definition so UIManager can build the debug table */
   getTowerData() {
     return this.towerTypes;
   }
 
-  /** Create a tower from our definition (level 1) */
   createTower(towerTypeName) {
     const def = this.towerTypes.find(t => t.type === towerTypeName);
     if (!def) return null;
 
     const firstLvl = def.upgrades[0];
+    // Track gold spent (initial build cost)
     return {
       type: def.type,
       level: 1,
@@ -60,10 +58,14 @@ export class TowerManager {
       x: 0,
       y: 0,
       spot: null,
+      goldSpent: def.basePrice, // store total gold spent
     };
   }
 
   update(deltaSec) {
+    // If gameOver, skip
+    if (this.game.gameOver) return;
+
     // Fire towers
     this.towers.forEach(tower => {
       tower.fireCooldown -= deltaSec;
@@ -120,7 +122,6 @@ export class TowerManager {
   }
 
   fireTower(tower) {
-    // Find enemies in range
     const enemiesInRange = this.game.enemies.filter(e => {
       const ex = e.x + e.width / 2;
       const ey = e.y + e.height / 2;
@@ -135,7 +136,6 @@ export class TowerManager {
     const ex = target.x + target.width / 2;
     const ey = target.y + target.height / 2;
 
-    // 4x4 projectile
     this.projectiles.push({
       x: tower.x,
       y: tower.y,
@@ -160,24 +160,36 @@ export class TowerManager {
     const nextLvl = def.upgrades[nextLvlIndex];
     if (!nextLvl) return;
 
-    // Check gold
     if (this.game.gold < nextLvl.upgradeCost) return;
 
     // Spend gold
     this.game.gold -= nextLvl.upgradeCost;
+    tower.goldSpent += nextLvl.upgradeCost; // track it
     tower.level++;
 
-    // Adjust tower stats
     tower.damage = nextLvl.damage;
     tower.upgradeCost = def.upgrades[tower.level]
       ? def.upgrades[tower.level].upgradeCost
       : 0;
   }
 
+  sellTower(tower) {
+    // 80% of goldSpent
+    const refund = Math.floor(tower.goldSpent * 0.8);
+    this.game.gold += refund;
+
+    // Remove tower from manager
+    this.towers = this.towers.filter(t => t !== tower);
+
+    // Free the spot
+    if (tower.spot) tower.spot.occupied = false;
+  }
+
   drawTowers(ctx) {
     this.towers.forEach(t => {
       ctx.beginPath();
-      ctx.arc(t.x, t.y, 12 + t.level * 2, 0, Math.PI * 2);
+      // Double the circle radius from "12 + t.level*2" to something bigger
+      ctx.arc(t.x, t.y, (24 + t.level*4), 0, Math.PI * 2);
       ctx.fillStyle = (t.type === "point") ? "blue" : "red";
       ctx.fill();
       ctx.strokeStyle = "#fff";

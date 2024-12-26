@@ -6,15 +6,21 @@
     <link rel="stylesheet" type="text/css" href="css/style.css">
   </head>
   <body>
+    <!-- Game over / victory dialog -->
+    <div id="gameOverDialog" style="display: none;">
+      <div id="gameOverMessage"></div>
+      <button id="closeGameOverDialog">Close</button>
+    </div>
+
     <!-- Wrap the canvas + buttons in a container so they're anchored relative to the canvas -->
-    <div id="gameContainer" style="position: relative; width: 800px; margin: 0 auto;">
+    <div id="gameContainer">
       <!-- Game canvas -->
       <canvas id="gameCanvas" width="800" height="600"></canvas>
       
       <!-- Container for Speed / Pause & Wave buttons, anchored top-right of the canvas -->
-      <div id="topButtons" style="position: absolute; top: 10px; right: 10px; display: flex; gap: 6px;">
+      <div id="topButtons">
         <button id="speedToggleButton" class="actionButton">1x</button>
-        <button id="pauseButton" class="actionButton">Start game</button>
+        <button id="pauseButton" class="actionButton">Pause</button>
         <button id="sendWaveButton" class="actionButton">Send Next Wave Early</button>
       </div>
     </div>
@@ -35,6 +41,9 @@
     <div id="bottomBar">
       <!-- Left side: debug controls -->
       <div class="debugControls">
+        <!-- Debug toggle -->
+        <div id="debugToggle">Enable Debug Mode</div>
+        
         <!-- "Starting gold" + "Restart Game" row -->
         <label for="startingGoldInput">Starting gold</label>
         <input
@@ -44,18 +53,8 @@
         />
         <button id="restartGameButton">Restart Game</button>
 
-        <!-- Enemy HP toggle row -->
-        <div id="enemyHpContainer" style="margin-top: 6px;">
-          <button id="enemyHpButton">Enemy HP: 100%</button>
-        </div>
-
-        <!-- Show current game parameters row -->
-        <div id="currentGameLabel" style="margin-top: 6px;">
-          Current game: Starting gold: 1000, Enemy HP: 100%
-        </div>
-
-        <!-- Debug table container (always shown) -->
-        <div id="debugTableContainer" style="display: block; margin-top: 6px;">
+        <!-- Debug table container -->
+        <div id="debugTableContainer">
           <table id="debugTable"></table>
         </div>
       </div>
@@ -63,27 +62,6 @@
       <!-- Right side placeholder (empty) -->
       <div></div>
     </div>
-
-    <!-- End-of-game overlay (hidden by default) -->
-    <div
-      id="endOverlay"
-      style="
-        display: none;
-        position: fixed;
-        top: 0; 
-        left: 0;
-        width: 100vw; 
-        height: 100vh; 
-        background: rgba(0, 0, 0, 0.85);
-        color: #fff;
-        font-family: sans-serif;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-      "
-    ></div>
 
     <script type="module" src="./js/main.js"></script>
   </body>

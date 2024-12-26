@@ -88,118 +88,134 @@ body {
     color: #eee;
     font-family: sans-serif;
     position: relative;
-  }
+}
   
-  /* Game canvas styling (center + border) */
-  #gameCanvas {
-    display: block;
-    margin: 0 auto;
-    background-color: #000;
-    border: 2px solid #aaa;
-  }
-  
-  /* Container for top-right buttons (Pause / Send Wave) */
-  #topButtons {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    display: flex;
-    gap: 6px;
-  }
-  
-  /* Shared style for both action buttons (Pause, Wave) */
-  .actionButton {
-    background-color: #800;  /* Dark red */
-    color: #fff;
-    border: 1px solid #600;
-    padding: 2px 6px;
-    font-size: 12px;
-    border-radius: 3px;
-    cursor: pointer;
-  }
-  
-  .actionButton:hover {
-    background-color: #a00;  /* Slightly lighter on hover */
-  }
-  
-  /* Enemy stats panel at bottom-left */
-  #enemyStats {
-    display: none;
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    background: rgba(0,0,0,0.7);
-    padding: 6px;
-    border: 1px solid #999;
-    border-radius: 3px;
-  }
-  
-  /* Tower creation/upgrade panel */
-  #towerSelectPanel {
-    display: none;
-    position: absolute;
-    background: rgba(0,0,0,0.8);
-    border: 1px solid #999;
-    border-radius: 3px;
-    padding: 5px;
-    color: #fff;
-  }
-  
-  /* Bottom bar container */
-  #bottomBar {
-    width: 800px;
-    margin: 0 auto;
-    margin-top: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
-  
-  /* Left debug controls container */
-  .debugControls {
-    margin-bottom: 6px;
-  }
+/* Game canvas styling (center + border) */
+#gameCanvas {
+  display: block;
+  margin: 0 auto;
+  background-color: #000;
+  border: 2px solid #aaa;
+}
 
-  /* The debug table itself */
-  #debugTable {
-    border-collapse: collapse;
-    border: 1px solid #999; /* Or you can remove if you prefer */
-  }
-  
-  /* Starting gold input spacing */
-  #startingGoldInput {
-    width: 60px;
-    margin-left: 4px;
-    margin-right: 8px;
-  }
-  
-  /* Restart button spacing */
-  #restartGameButton {
-    margin-top: 4px;
-  }
+/* Container for top-right buttons (Pause / Send Wave) */
+#topButtons {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+}
 
-  /* Optional styling for endOverlay content */
-  .endMessage {
-    font-size: 48px;
-    margin-bottom: 20px;
-  }
-  .bigRedX {
-    color: red;
-    font-size: 120px;
-    margin-bottom: 20px;
-  }
-  .starContainer {
-    font-size: 64px;
-  }
-  .starLit {
-    color: gold;
-    margin: 0 6px;
-  }
-  .starDim {
-    color: gray;
-    margin: 0 6px;
-  }
+/* Shared style for both action buttons (Pause, Wave) */
+.actionButton {
+  background-color: #800;  /* Dark red */
+  color: #fff;
+  border: 1px solid #600;
+  padding: 2px 6px;
+  font-size: 12px;
+  border-radius: 3px;
+  cursor: pointer;
+}
 
+.actionButton:hover {
+  background-color: #a00;  /* Slightly lighter on hover */
+}
+
+/* Enemy stats panel at bottom-left */
+#enemyStats {
+  display: none;
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.7);
+  padding: 6px;
+  border: 1px solid #999;
+  border-radius: 3px;
+}
+
+/* Tower creation/upgrade panel */
+#towerSelectPanel {
+  display: none;
+  position: absolute;
+  background: rgba(0,0,0,0.8);
+  border: 1px solid #999;
+  border-radius: 3px;
+  padding: 5px;
+  color: #fff;
+}
+
+/* Bottom bar container */
+#bottomBar {
+  width: 800px;
+  margin: 0 auto;
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* Left debug controls container */
+.debugControls {
+  margin-bottom: 6px;
+}
+
+/* The debug table itself */
+#debugTable {
+  border-collapse: collapse;
+  border: 1px solid #999; /* Or you can remove if you prefer */
+}
+
+/* Starting gold input spacing */
+#startingGoldInput {
+  width: 60px;
+  margin-left: 4px;
+  margin-right: 8px;
+}
+
+/* Restart button spacing */
+#restartGameButton {
+  margin-top: 4px;
+}
+
+/* Smaller end dialog in the center. Initially hidden via display:none */
+#endDialog {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 200px;  /* ~ near middle horizontally */
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 20px;
+  border: 2px solid #aaa;
+  border-radius: 8px;
+  width: 300px;
+  text-align: center;
+  z-index: 9999;
+}
+
+/* We can reuse these from the old overlay style if we want big text. */
+.endMessage {
+  font-size: 36px;
+  margin-bottom: 20px;
+}
+.bigRedX {
+  color: red;
+  font-size: 72px;
+  margin-bottom: 20px;
+}
+.starContainer {
+  font-size: 48px;
+}
+.starLit {
+  color: gold;
+  margin: 0 6px;
+}
+.starDim {
+  color: gray;
+  margin: 0 6px;
+}
 === index.html ===
 <!DOCTYPE html>
 <html>
@@ -267,31 +283,12 @@ body {
       <div></div>
     </div>
 
-    <!-- End-of-game overlay (hidden by default) -->
-    <div
-      id="endOverlay"
-      style="
-        display: none;
-        position: fixed;
-        top: 0; 
-        left: 0;
-        width: 100vw; 
-        height: 100vh; 
-        background: rgba(0, 0, 0, 0.85);
-        color: #fff;
-        font-family: sans-serif;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-      "
-    ></div>
+    <!-- Smaller end-game dialog instead of a fullscreen overlay -->
+    <div id="endDialog"></div>
 
     <script type="module" src="./js/main.js"></script>
   </body>
 </html>
-
 === js/assetLoader.js ===
 /**
  * Test
@@ -492,7 +489,7 @@ export class EnemyManager {
         this.game.lives -= 1;
         if (this.game.lives <= 0) {
           this.game.lives = 0;
-          this.game.showLoseOverlay();
+          this.game.showLoseDialog();
         }
         return false;
       }
@@ -562,7 +559,6 @@ export class EnemyManager {
     }
   }
 }
-
 === js/game.js ===
 import { EnemyManager } from "./enemyManager.js";
 import { TowerManager } from "./towerManager.js";
@@ -574,7 +570,7 @@ export class Game {
     sendWaveBtn,
     enemyStatsDiv,
     towerSelectPanel,
-    /* Removed debugToggle, */ 
+    /* Removed debugToggle param, */
     debugTableContainer
   ) {
     this.canvas = canvas;
@@ -582,7 +578,6 @@ export class Game {
     this.width = canvas.width;
     this.height = canvas.height;
 
-    // Basic stats
     this.gold = 200;
     this.lives = 20;
     this.maxLives = 20; // For x/y display
@@ -650,8 +645,8 @@ export class Game {
     // Canvas click => pass to UIManager
     this.canvas.addEventListener("click", (e) => this.handleCanvasClick(e));
 
-    // Reference to overlay
-    this.endOverlay = document.getElementById("endOverlay");
+    // Instead of overlay, we have a small #endDialog
+    this.endDialog = document.getElementById("endDialog");
   }
 
   setLevelData(data, bgImg) {
@@ -754,15 +749,12 @@ export class Game {
 
     // HUD
     this.ctx.fillStyle = "white";
-    // Gold
     this.ctx.fillText(`Gold: ${this.gold}`, 10, 50);
-    // Waves (use total wave count)
     this.ctx.fillText(
       `Wave: ${this.waveManager.waveIndex + 1}/${this.waveManager.waves.length}`,
       10,
       70
     );
-    // Lives as x/y
     this.ctx.fillText(`Lives: ${this.lives}/${this.maxLives}`, 10, 90);
 
     if (
@@ -773,17 +765,19 @@ export class Game {
     }
   }
 
-  showLoseOverlay() {
+  showLoseDialog() {
+    // Pause game
     this.paused = true;
-    // Show an overlay with "You Lost" and giant red X
-    this.endOverlay.innerHTML = `
+    // Show "You Lost" in #endDialog with a red X
+    this.endDialog.innerHTML = `
       <div class="endMessage">You Lost</div>
       <div class="bigRedX">X</div>
     `;
-    this.endOverlay.style.display = "flex";
+    this.endDialog.style.display = "block";
   }
 
-  showWinOverlay() {
+  showWinDialog() {
+    // Pause game
     this.paused = true;
     // Evaluate how many stars
     let starCount = 1;
@@ -799,16 +793,15 @@ export class Game {
       starCount >= 3 ? '<span class="starLit">★</span>' : '<span class="starDim">★</span>'
     ].join("");
 
-    this.endOverlay.innerHTML = `
+    this.endDialog.innerHTML = `
       <div class="endMessage">You Win</div>
       <div class="starContainer">
         ${starHTML}
       </div>
     `;
-    this.endOverlay.style.display = "flex";
+    this.endDialog.style.display = "block";
   }
 }
-
 === js/main.js ===
 import { Game } from "./game.js";
 import { level1Data } from "./maps/level1.js";
@@ -826,7 +819,6 @@ async function startGameWithParams(startingGold, hpFactor) {
   const sendWaveBtn = document.getElementById("sendWaveButton");
   const enemyStatsDiv = document.getElementById("enemyStats");
   const towerSelectPanel = document.getElementById("towerSelectPanel");
-  // We removed debugToggle
   const debugTableContainer = document.getElementById("debugTableContainer");
   const debugTable = document.getElementById("debugTable");
 
@@ -905,14 +897,11 @@ window.addEventListener("load", async () => {
     const hpPct = Math.round(hpFactor * 100);
     enemyHpButton.textContent = `Enemy HP: ${hpPct}%`;
 
-    // If you want the button to dynamically change mid-game, you could do:
-    // game.enemyHpFactor = hpFactor;
-    // Or if we want to restart the game each time:
+    // Option B: fully restart with the new HP factor:
     const desiredGold = parseInt(startGoldInput.value) || 0;
     await startGameWithParams(desiredGold, hpFactor);
   });
 });
-
 === js/maps/level1.js ===
 export const level1Data = {
   background: "assets/maps/level1.png",
@@ -1548,7 +1537,7 @@ export class WaveManager {
       const waveInfo = this.waves[this.waveIndex];
       const allSpawned = waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
       if (allSpawned && this.game.enemies.length === 0) {
-        // Wave done
+        // wave done
         this.waveActive = false;
         this.waveIndex++;
         // no forced delay for next wave
@@ -1557,7 +1546,7 @@ export class WaveManager {
         // If that was the last wave, and it's done, show "You Win"
         if (this.waveIndex >= this.waves.length) {
           // Completed all waves
-          this.game.showWinOverlay();
+          this.game.showWinDialog();
         }
       }
     }
@@ -1592,4 +1581,3 @@ export class WaveManager {
     }
   }
 }
-

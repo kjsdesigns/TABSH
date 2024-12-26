@@ -6,42 +6,54 @@ body {
     color: #eee;
     font-family: sans-serif;
     position: relative;
-  }
-  
-  /* Game canvas styling (center + border) */
-  #gameCanvas {
-    display: block;
+}
+
+/* Game Container */
+#gameContainer {
+    position: relative;
+    width: 800px;
     margin: 0 auto;
-    background-color: #000;
-    border: 2px solid #aaa;
-  }
-  
-  /* Container for top-right buttons (Pause / Send Wave) */
-  #topButtons {
+}
+
+/* Top-right buttons (Pause, Wave, Speed) container */
+#topButtons {
     position: absolute;
     top: 10px;
     right: 10px;
     display: flex;
     gap: 6px;
-  }
-  
-  /* Shared style for both action buttons (Pause, Wave) */
-  .actionButton {
+}
+
+/* Make all buttons more tap-friendly */
+button,
+.actionButton {
+    padding: 4px 8px; /* 2px more on each side than before */
+    cursor: pointer;
+}
+
+/* Action buttons share these styles */
+.actionButton {
     background-color: #800;  /* Dark red */
     color: #fff;
     border: 1px solid #600;
-    padding: 2px 6px;
     font-size: 12px;
     border-radius: 3px;
-    cursor: pointer;
-  }
-  
-  .actionButton:hover {
+}
+
+.actionButton:hover {
     background-color: #a00;  /* Slightly lighter on hover */
-  }
-  
-  /* Enemy stats panel at bottom-left */
-  #enemyStats {
+}
+
+/* Game canvas styling (center + border) */
+#gameCanvas {
+    display: block;
+    margin: 0 auto;
+    background-color: #000;
+    border: 2px solid #aaa;
+}
+
+/* Enemy stats panel at bottom-left */
+#enemyStats {
     display: none;
     position: absolute;
     bottom: 10px;
@@ -50,10 +62,10 @@ body {
     padding: 6px;
     border: 1px solid #999;
     border-radius: 3px;
-  }
-  
-  /* Tower creation/upgrade panel */
-  #towerSelectPanel {
+}
+
+/* Tower creation/upgrade panel */
+#towerSelectPanel {
     display: none;
     position: absolute;
     background: rgba(0,0,0,0.8);
@@ -61,59 +73,67 @@ body {
     border-radius: 3px;
     padding: 5px;
     color: #fff;
-  }
-  
-  /* Bottom bar container */
-  #bottomBar {
+}
+
+/* Bottom bar container */
+#bottomBar {
     width: 800px;
     margin: 0 auto;
     margin-top: 10px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-  }
-  
-  /* Left debug controls container */
-  .debugControls {
-    margin-bottom: 6px;
-  }
+}
 
-  /* The debug table itself */
-  #debugTable {
+/* Left debug controls container */
+.debugControls {
+    margin-bottom: 6px;
+}
+
+/* Debug toggle text */
+#debugToggle {
+    cursor: pointer;
+    margin-bottom: 6px;
+}
+
+/* Hide the debug table container by default (shown if debug mode is on) */
+#debugTableContainer {
+    display: none;
+}
+
+/* The debug table itself */
+#debugTable {
     border-collapse: collapse;
     border: 1px solid #999; /* Or you can remove if you prefer */
-  }
-  
-  /* Starting gold input spacing */
-  #startingGoldInput {
+}
+
+/* Starting gold input spacing */
+#startingGoldInput {
     width: 60px;
     margin-left: 4px;
     margin-right: 8px;
-  }
-  
-  /* Restart button spacing */
-  #restartGameButton {
-    margin-top: 4px;
-  }
+}
 
-  /* Optional styling for endOverlay content */
-  .endMessage {
-    font-size: 48px;
-    margin-bottom: 20px;
-  }
-  .bigRedX {
-    color: red;
-    font-size: 120px;
-    margin-bottom: 20px;
-  }
-  .starContainer {
-    font-size: 64px;
-  }
-  .starLit {
-    color: gold;
-    margin: 0 6px;
-  }
-  .starDim {
-    color: gray;
-    margin: 0 6px;
-  }
+/* Restart button spacing */
+#restartGameButton {
+    margin-top: 4px;
+}
+
+/* Game Over Dialog */
+#gameOverDialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85);
+    border: 2px solid #999;
+    padding: 20px;
+    border-radius: 8px;
+    z-index: 9999; /* ensure on top */
+    text-align: center;
+}
+
+#gameOverMessage {
+    font-size: 20px;
+    margin-bottom: 12px;
+}

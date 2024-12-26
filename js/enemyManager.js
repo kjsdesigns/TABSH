@@ -2,25 +2,25 @@ export class EnemyManager {
   constructor(game) {
     this.game = game;
 
-    // Internal data: "raw" stats
+    // Halved all base HP (50% of original)
     this.enemyBaseData = {
       drone: {
-        baseHp: 30,
+        baseHp: 15,
         gold: 5,
         baseSpeed: 80,
       },
       leaf_blower: {
-        baseHp: 60,
+        baseHp: 30,
         gold: 8,
         baseSpeed: 60,
       },
       trench_digger: {
-        baseHp: 100,
+        baseHp: 50,
         gold: 12,
         baseSpeed: 30,
       },
       trench_walker: {
-        baseHp: 150,
+        baseHp: 75,
         gold: 15,
         baseSpeed: 25,
       },
@@ -36,18 +36,16 @@ export class EnemyManager {
 
   spawnEnemy(type, hpMultiplier = 1) {
     const baseData = this.enemyBaseData[type] || this.enemyBaseData["drone"];
-    // Find matching image asset (fallback to index[0] if missing)
     const asset = this.loadedEnemyAssets.find(e => e.name === type)
       || this.loadedEnemyAssets[0];
 
-    // 20% global HP reduction, wave multiplier, AND game.enemyHpFactor
-    const finalHp = baseData.baseHp * 0.8 * hpMultiplier * this.game.enemyHpFactor;
+    // 20% global HP reduction, then apply wave multiplier
+    const finalHp = baseData.baseHp * 0.8 * hpMultiplier;
 
     // Random speed ~ ±20% around baseSpeed
     const speedFactor = 0.8 + Math.random() * 0.4;
     const finalSpeed = baseData.baseSpeed * speedFactor;
 
-    // Start at path[0]
     const path = this.game.path;
     if (!path || path.length === 0) {
       console.warn("No path defined in Game; cannot spawn enemy properly.");
@@ -74,6 +72,9 @@ export class EnemyManager {
   }
 
   update(deltaSec) {
+    // If gameOver, do not update enemies
+    if (this.game.gameOver) return;
+
     // Move enemies, handle death
     this.game.enemies.forEach(e => {
       this.updateEnemy(e, deltaSec);
@@ -88,16 +89,14 @@ export class EnemyManager {
       }
     });
 
-    // Remove dead enemies or enemies that exit
+    // Remove dead or off-screen enemies
     this.game.enemies = this.game.enemies.filter(e => {
       if (e.dead) return false;
-
-      // If the enemy is off-screen to the right
       if (e.x > this.game.width + e.width) {
         this.game.lives -= 1;
-        if (this.game.lives <= 0) {
-          this.game.lives = 0;
-          this.game.showLoseOverlay();
+        if (this.game.lives <= 0 && !this.game.gameOver) {
+          this.game.lives = 0; 
+          this.game.endGame("Game Over");
         }
         return false;
       }
@@ -119,7 +118,7 @@ export class EnemyManager {
     const ty = nextWP.y;
     const dx = tx - enemy.x;
     const dy = ty - enemy.y;
-    const dist = Math.sqrt(dx*dx + dy*dy);
+    const dist = Math.sqrt(dx * dx + dy * dy);
     const step = enemy.speed * deltaSec;
 
     if (dist <= step) {

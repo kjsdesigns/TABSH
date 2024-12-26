@@ -1,13 +1,9 @@
 export class WaveManager {
   constructor(game) {
     this.game = game;
-
     this.waveIndex = 0;
     this.waveActive = false;
-
-    // Start with no forced delay; wave can start immediately if unpaused
     this.timeUntilNextWave = 0;
-
     this.waves = [];
   }
 
@@ -17,7 +13,10 @@ export class WaveManager {
   }
 
   update(deltaSec) {
-    // If wave not active, see if there's another wave to start
+    // If game is over, no updates
+    if (this.game.gameOver) return;
+
+    // If no active wave, see if there's another wave
     if (!this.waveActive && this.waveIndex < this.waves.length) {
       this.timeUntilNextWave -= deltaSec;
       if (this.timeUntilNextWave <= 0) {
@@ -25,21 +24,19 @@ export class WaveManager {
       }
     }
 
-    // Check if the current wave is finished
+    // Check if current wave is finished
     if (this.waveActive) {
       const waveInfo = this.waves[this.waveIndex];
       const allSpawned = waveInfo.enemyGroups.every(g => g.spawnedCount >= g.count);
       if (allSpawned && this.game.enemies.length === 0) {
-        // Wave done
+        // wave done
         this.waveActive = false;
         this.waveIndex++;
-        // no forced delay for next wave
         this.timeUntilNextWave = 0;
 
-        // If that was the last wave, and it's done, show "You Win"
-        if (this.waveIndex >= this.waves.length) {
-          // Completed all waves
-          this.game.showWinOverlay();
+        // If waveIndex == waves.length => all waves done => Victory
+        if (this.waveIndex >= this.waves.length && !this.game.gameOver) {
+          this.game.endGame("You Win!");
         }
       }
     }
@@ -49,10 +46,13 @@ export class WaveManager {
     this.waveActive = true;
     const waveInfo = this.waves[index];
 
-    // For each group, spawn them over time (parallel if intervals overlap)
     waveInfo.enemyGroups.forEach(group => {
       group.spawnedCount = 0;
       const timer = setInterval(() => {
+        if (this.game.gameOver) {
+          clearInterval(timer);
+          return;
+        }
         if (group.spawnedCount >= group.count) {
           clearInterval(timer);
           return;
@@ -64,7 +64,6 @@ export class WaveManager {
   }
 
   spawnEnemyGroup(group) {
-    // Use the consolidated logic in enemyManager
     this.game.enemyManager.spawnEnemy(group.type, group.hpMultiplier);
   }
 
