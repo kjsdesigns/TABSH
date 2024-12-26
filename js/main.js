@@ -1,23 +1,35 @@
+// test Dec 25 11:56 am
 import { Game } from "./game.js";
 import { level1Data } from "./maps/level1.js";
 import { UIManager } from "./uiManager.js";
 import { loadAllAssets } from "./assetLoader.js";
 
+/**
+ * Global parameters the user can set before starting the game:
+ * - enemyHpPercent: 80% to 120%, default 100
+ */
+let enemyHpPercent = 100;
+
 let game = null;
 
+/**
+ * Reusable function to start (or restart) the game with chosen gold.
+ */
 async function startGameWithGold(startingGold) {
-  // Hide any leftover gameOverDialog
-  const dlg = document.getElementById("gameOverDialog");
-  dlg.style.display = "none";
-
   const canvas = document.getElementById("gameCanvas");
   const pauseBtn = document.getElementById("pauseButton");
   const sendWaveBtn = document.getElementById("sendWaveButton");
   const enemyStatsDiv = document.getElementById("enemyStats");
   const towerSelectPanel = document.getElementById("towerSelectPanel");
-  const debugToggle = document.getElementById("debugToggle");
   const debugTableContainer = document.getElementById("debugTableContainer");
   const debugTable = document.getElementById("debugTable");
+  const loseMessage = document.getElementById("loseMessage");
+  const winMessage = document.getElementById("winMessage");
+
+  // Clear any end-game messages
+  loseMessage.style.display = "none";
+  winMessage.style.display = "none";
+  winMessage.querySelector("#winStars").innerHTML = "";
 
   // Create new Game
   game = new Game(
@@ -25,14 +37,16 @@ async function startGameWithGold(startingGold) {
     sendWaveBtn,
     enemyStatsDiv,
     towerSelectPanel,
-    debugToggle,
     debugTableContainer
   );
 
   // UI Manager
-  const uiManager = new UIManager(game, enemyStatsDiv, towerSelectPanel, debugTable);
+  const uiManager = new UIManager(game, enemyStatsDiv, towerSelectPanel, debugTable, loseMessage, winMessage);
   uiManager.initDebugTable();
   game.uiManager = uiManager;
+
+  // This factor (0.8 -> 1.2) is applied on top of each enemy's normal HP
+  game.globalEnemyHpMultiplier = enemyHpPercent / 100;
 
   // Enemy definitions for loading
   const enemyTypes = [
@@ -59,20 +73,16 @@ async function startGameWithGold(startingGold) {
 
   // Start
   game.start();
+
+  // Update the "current game" label
+  const currentGameLabel = document.getElementById("currentGameLabel");
+  currentGameLabel.textContent = `Current game: Starting gold: ${startingGold}, Enemy HP: ${enemyHpPercent}%`;
 }
 
 window.addEventListener("load", async () => {
   const startGoldInput = document.getElementById("startingGoldInput");
   const restartGameButton = document.getElementById("restartGameButton");
-
-  // Close button on gameOverDialog
-  const closeBtn = document.getElementById("closeGameOverDialog");
-  if (closeBtn) {
-    closeBtn.addEventListener("click", () => {
-      const dlg = document.getElementById("gameOverDialog");
-      dlg.style.display = "none";
-    });
-  }
+  const enemyHpButton = document.getElementById("enemyHpButton");
 
   // 1) Default or user-supplied gold
   await startGameWithGold(parseInt(startGoldInput.value) || 1000);
@@ -81,5 +91,17 @@ window.addEventListener("load", async () => {
   restartGameButton.addEventListener("click", async () => {
     const desiredGold = parseInt(startGoldInput.value) || 0;
     await startGameWithGold(desiredGold);
+  });
+
+  // 3) Enemy HP toggle (cycles 80->85->90-> ... ->120->80 etc.)
+  const possibleHpValues = [];
+  for(let v=80; v<=120; v+=5) {
+    possibleHpValues.push(v);
+  }
+  let hpIndex = possibleHpValues.indexOf(100);
+  enemyHpButton.addEventListener("click", () => {
+    hpIndex = (hpIndex + 1) % possibleHpValues.length;
+    enemyHpPercent = possibleHpValues[hpIndex];
+    enemyHpButton.textContent = `Enemy HP: ${enemyHpPercent}%`;
   });
 });

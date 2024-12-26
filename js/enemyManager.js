@@ -2,25 +2,27 @@ export class EnemyManager {
   constructor(game) {
     this.game = game;
 
-    // Halved all base HP (50% of original)
+    // Internal data: "raw" stats before HP multipliers or random speed factor.
+    // We'll apply the 20% global HP reduction on spawn, plus any wave multiplier,
+    // plus the global game multiplier (game.globalEnemyHpMultiplier).
     this.enemyBaseData = {
       drone: {
-        baseHp: 15,
+        baseHp: 30,
         gold: 5,
         baseSpeed: 80,
       },
       leaf_blower: {
-        baseHp: 30,
+        baseHp: 60,
         gold: 8,
         baseSpeed: 60,
       },
       trench_digger: {
-        baseHp: 50,
+        baseHp: 100,
         gold: 12,
         baseSpeed: 30,
       },
       trench_walker: {
-        baseHp: 75,
+        baseHp: 150,
         gold: 15,
         baseSpeed: 25,
       },
@@ -36,16 +38,21 @@ export class EnemyManager {
 
   spawnEnemy(type, hpMultiplier = 1) {
     const baseData = this.enemyBaseData[type] || this.enemyBaseData["drone"];
+    // Find matching image asset
     const asset = this.loadedEnemyAssets.find(e => e.name === type)
       || this.loadedEnemyAssets[0];
 
-    // 20% global HP reduction, then apply wave multiplier
-    const finalHp = baseData.baseHp * 0.8 * hpMultiplier;
+    // 20% global HP reduction, wave multiplier, plus global game multiplier
+    const finalHp = baseData.baseHp
+                    * 0.8
+                    * hpMultiplier
+                    * this.game.globalEnemyHpMultiplier;
 
     // Random speed ~ ±20% around baseSpeed
     const speedFactor = 0.8 + Math.random() * 0.4;
     const finalSpeed = baseData.baseSpeed * speedFactor;
 
+    // Start at path[0]
     const path = this.game.path;
     if (!path || path.length === 0) {
       console.warn("No path defined in Game; cannot spawn enemy properly.");
@@ -53,6 +60,7 @@ export class EnemyManager {
     }
     const firstWP = path[0];
 
+    // Create enemy object
     const enemy = {
       name: type,
       image: asset.image,
@@ -68,13 +76,11 @@ export class EnemyManager {
       dead: false,
     };
 
+    // Add to game.enemies
     this.game.enemies.push(enemy);
   }
 
   update(deltaSec) {
-    // If gameOver, do not update enemies
-    if (this.game.gameOver) return;
-
     // Move enemies, handle death
     this.game.enemies.forEach(e => {
       this.updateEnemy(e, deltaSec);
@@ -89,14 +95,21 @@ export class EnemyManager {
       }
     });
 
-    // Remove dead or off-screen enemies
+    // Remove dead enemies or enemies that leave the screen
     this.game.enemies = this.game.enemies.filter(e => {
       if (e.dead) return false;
+
+      // If the enemy is off-screen (x > this.game.width + e.width),
+      // lose a life
       if (e.x > this.game.width + e.width) {
         this.game.lives -= 1;
-        if (this.game.lives <= 0 && !this.game.gameOver) {
-          this.game.lives = 0; 
-          this.game.endGame("Game Over");
+        if (this.game.lives <= 0) {
+          this.game.lives = 0;
+          // Use UI manager to show "You lost"
+          if (this.game.uiManager) {
+            this.game.paused = true;
+            this.game.uiManager.showLoseDialog();
+          }
         }
         return false;
       }
@@ -108,7 +121,7 @@ export class EnemyManager {
     const path = this.game.path;
     const nextWP = path[enemy.waypointIndex];
     if (!nextWP) {
-      // No next WP => just move off-screen
+      // No next WP => move off-screen
       enemy.x += enemy.speed * deltaSec;
       return;
     }

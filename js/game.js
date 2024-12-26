@@ -8,7 +8,6 @@ export class Game {
     sendWaveBtn,
     enemyStatsDiv,
     towerSelectPanel,
-    debugToggle,
     debugTableContainer
   ) {
     this.canvas = canvas;
@@ -17,7 +16,9 @@ export class Game {
     this.height = canvas.height;
 
     this.gold = 200;
+    // track both current and max lives for the "x/y" display
     this.lives = 20;
+    this.maxLives = 20;
 
     // Speed handling
     this.speedOptions = [1, 2, 4, 0.5];
@@ -28,9 +29,6 @@ export class Game {
     this.isFirstStart = true;
     this.paused = true;
 
-    // For detecting final win/loss
-    this.gameOver = false;
-
     // Level data
     this.levelData = null;
     this.backgroundImg = null;
@@ -40,6 +38,9 @@ export class Game {
     // Enemies
     this.enemies = [];
 
+    // Global enemy HP multiplier (set from outside)
+    this.globalEnemyHpMultiplier = 1.0;
+
     // Managers
     this.enemyManager = new EnemyManager(this);
     this.towerManager = new TowerManager(this);
@@ -48,7 +49,7 @@ export class Game {
     // Main loop
     this.lastTime = 0;
 
-    // Debug mode on by default
+    // Debug mode is always on now
     this.debugMode = true;
 
     // Hook up wave button
@@ -78,18 +79,7 @@ export class Game {
       pauseBtn.textContent = this.paused ? "Resume" : "Pause";
     });
 
-    // Debug toggle
-    debugToggle.addEventListener("click", () => {
-      this.debugMode = !this.debugMode;
-      debugToggle.textContent = this.debugMode
-        ? "Disable Debug Mode"
-        : "Enable Debug Mode";
-      debugTableContainer.style.display = this.debugMode ? "block" : "none";
-    });
-    debugToggle.textContent = "Disable Debug Mode";
-    debugTableContainer.style.display = "block";
-
-    // Delegate clicks to UI Manager
+    // Canvas click
     this.canvas.addEventListener("click", (e) => this.handleCanvasClick(e));
   }
 
@@ -118,25 +108,15 @@ export class Game {
     requestAnimationFrame((ts) => this.gameLoop(ts));
   }
 
-  endGame(message) {
-    // Mark game over, pause
-    this.gameOver = true;
-    this.paused   = true;
-
-    // Show the dialog
-    const dlg = document.getElementById("gameOverDialog");
-    const msg = document.getElementById("gameOverMessage");
-    msg.textContent = message;
-    dlg.style.display = "block";
-  }
-
   gameLoop(timestamp) {
     const delta = (timestamp - this.lastTime) || 0;
     this.lastTime = timestamp;
 
+    // Convert to seconds, then scale by gameSpeed
     let deltaSec = delta / 1000;
     deltaSec *= this.gameSpeed;
 
+    // Update if not paused
     if (!this.paused) {
       this.waveManager.update(deltaSec);
       this.enemyManager.update(deltaSec);
@@ -149,10 +129,10 @@ export class Game {
   }
 
   handleCanvasClick(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
     if (this.uiManager && this.uiManager.handleCanvasClick) {
-      const rect = this.canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
       this.uiManager.handleCanvasClick(mx, my, rect);
     }
   }
@@ -164,22 +144,26 @@ export class Game {
       this.ctx.clearRect(0, 0, this.width, this.height);
     }
 
+    // Enemies
     this.enemies.forEach(enemy => {
       this.enemyManager.drawEnemy(this.ctx, enemy);
     });
 
+    // Projectiles
     this.towerManager.drawProjectiles(this.ctx);
+
+    // Towers
     this.towerManager.drawTowers(this.ctx);
 
-    // Tower spots (debug overlay) -- doubled radius
+    // Tower spots (debug overlay)
     this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
     this.towerSpots.forEach((spot, i) => {
       this.ctx.beginPath();
-      this.ctx.arc(spot.x, spot.y, 20, 0, Math.PI * 2);
+      this.ctx.arc(spot.x, spot.y, 10, 0, Math.PI * 2);
       this.ctx.fill();
       if (this.debugMode) {
         this.ctx.fillStyle = "white";
-        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 25);
+        this.ctx.fillText(`T${i}`, spot.x - 10, spot.y - 15);
         this.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
       }
     });
@@ -205,7 +189,7 @@ export class Game {
       10,
       70
     );
-    this.ctx.fillText(`Lives: ${this.lives}`, 10, 90);
+    this.ctx.fillText(`Lives: ${this.lives}/${this.maxLives}`, 10, 90);
 
     if (
       !this.waveManager.waveActive &&

@@ -1,10 +1,20 @@
 export class UIManager {
-    constructor(game, enemyStatsDiv, towerSelectPanel, debugTable) {
+    constructor(
+      game,
+      enemyStatsDiv,
+      towerSelectPanel,
+      debugTable,
+      loseMessageDiv,
+      winMessageDiv
+    ) {
       this.game = game;
       this.enemyStatsDiv = enemyStatsDiv;
       this.towerSelectPanel = towerSelectPanel;
       this.debugTable = debugTable;
+      this.loseMessageDiv = loseMessageDiv;
+      this.winMessageDiv = winMessageDiv;
   
+      // Elements inside enemyStatsDiv
       this.enemyImage    = document.getElementById("enemyImage");
       this.enemyNameEl   = document.getElementById("enemyName");
       this.enemyHpEl     = document.getElementById("enemyHp");
@@ -73,11 +83,7 @@ export class UIManager {
       this.debugTable.appendChild(tbody);
     }
   
-    /**
-     * Increase detectionDist from 100 to 400
-     * (so user can click anywhere within the doubled radius).
-     */
-    getTowerSpotAt(mx, my, detectionDist = 400) {
+    getTowerSpotAt(mx, my, detectionDist = 100) {
       return this.game.towerSpots.find(s => {
         const dx = mx - s.x;
         const dy = my - s.y;
@@ -109,7 +115,9 @@ export class UIManager {
   
     handleCanvasClick(mx, my, rect) {
       const entity = this.getEntityUnderMouse(mx, my);
+  
       if (!entity) {
+        // clicked empty space, hide panels
         this.selectedEnemy = null;
         this.hideEnemyStats();
         this.hideTowerPanel();
@@ -146,16 +154,6 @@ export class UIManager {
       title.style.fontWeight = "bold";
       title.textContent = `${tower.type.toUpperCase()} Tower`;
       this.towerSelectPanel.appendChild(title);
-
-      // SELL BUTTON
-      const sellBtn = document.createElement("button");
-      sellBtn.textContent = "Sell Tower";
-      sellBtn.style.marginBottom = "6px";
-      sellBtn.addEventListener("click", () => {
-        this.game.towerManager.sellTower(tower);
-        this.hideTowerPanel();
-      });
-      this.towerSelectPanel.appendChild(sellBtn);
   
       const currStats = document.createElement("div");
       currStats.innerHTML = `
@@ -165,11 +163,12 @@ export class UIManager {
       `;
       this.towerSelectPanel.appendChild(currStats);
   
+      // Next-level info if not maxed
       if (tower.level < tower.maxLevel) {
         const nextLevel = tower.level + 1;
         const def = this.game.towerManager.getTowerData().find(d => d.type === tower.type);
         if (def) {
-          const nextDef = def.upgrades[tower.level];
+          const nextDef = def.upgrades[tower.level]; // tower.level=1 => index=1
           if (nextDef) {
             const nextDamage = nextDef.damage;
             const cost = nextDef.upgradeCost;
@@ -202,6 +201,7 @@ export class UIManager {
         this.towerSelectPanel.appendChild(maxed);
       }
   
+      // Show, measure, then position
       this.towerSelectPanel.style.display = "block";
       const panelW = this.towerSelectPanel.offsetWidth;
       const panelH = this.towerSelectPanel.offsetHeight;
@@ -282,7 +282,7 @@ export class UIManager {
       this.enemyStatsDiv.style.display = "block";
       this.enemyImage.src          = enemy.image.src;
       this.enemyNameEl.textContent = enemy.name;
-      this.enemyHpEl.textContent   = `${enemy.hp}/${enemy.baseHp}`;
+      this.enemyHpEl.textContent   = `${enemy.hp.toFixed(1)}/${enemy.baseHp.toFixed(1)}`;
       this.enemySpeedEl.textContent= enemy.speed.toFixed(1);
       this.enemyGoldEl.textContent = enemy.gold;
     }
@@ -290,7 +290,43 @@ export class UIManager {
     hideEnemyStats() {
       this.enemyStatsDiv.style.display = "none";
     }
-  
+
+    /**
+     * Called by enemyManager when lives <= 0
+     */
+    showLoseDialog() {
+      this.loseMessageDiv.style.display = "block";
+    }
+
+    /**
+     * Called by waveManager on final wave completion if we still have >0 lives
+     * Display 1, 2, or 3 stars based on how many lives remain
+     */
+    showWinDialog(finalLives, maxLives) {
+      this.winMessageDiv.style.display = "block";
+      const starsDiv = this.winMessageDiv.querySelector("#winStars");
+
+      // Decide how many stars to light up
+      // If 18 or more => 3 lit
+      // 10-17 => 2 lit
+      // else => 1 lit
+      let starCount = 1;
+      if (finalLives >= 18) starCount = 3;
+      else if (finalLives >= 10) starCount = 2;
+
+      const starSymbols = [];
+      for(let i=1; i<=3; i++){
+        if (i <= starCount) {
+          // lit star
+          starSymbols.push("★");
+        } else {
+          // dull star
+          starSymbols.push("☆");
+        }
+      }
+      starsDiv.innerHTML = starSymbols.join(" ");
+    }
+
     handleMouseMove(e) {
       const rect = this.game.canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
